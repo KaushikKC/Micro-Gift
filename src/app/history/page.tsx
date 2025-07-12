@@ -1,250 +1,242 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect } from "react"
-import { Send, Download, Search, Calendar, Gift, TrendingUp, Users, DollarSign } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Gift, Clock, CheckCircle, XCircle, ArrowUpRight, ArrowDownLeft } from "lucide-react"
 import { InteractiveButton } from "@/components/interactive-button"
 
-interface GiftTransaction {
+interface GiftHistory {
   id: string
   type: "sent" | "received"
   amount: string
-  address: string
   message: string
-  date: string
+  address: string
+  timestamp: string
   status: "completed" | "pending" | "failed"
+  txHash: string
 }
 
 export default function HistoryPage() {
-  const [activeTab, setActiveTab] = useState<"sent" | "received">("sent")
-  const [searchQuery, setSearchQuery] = useState("")
   const [isLoaded, setIsLoaded] = useState(false)
+  const [activeTab, setActiveTab] = useState<"all" | "sent" | "received">("all")
 
   useEffect(() => {
     setIsLoaded(true)
   }, [])
 
-  const mockTransactions: GiftTransaction[] = [
+  const mockHistory: GiftHistory[] = [
     {
       id: "1",
       type: "sent",
-      amount: "$3",
-      address: "0x123...abc",
+      amount: "5",
       message: "Happy Birthday! 🎉",
-      date: "2025-01-10",
+      address: "0x1234...abcd",
+      timestamp: "2024-01-15 14:30",
       status: "completed",
+      txHash: "0xabc123...def456",
     },
     {
       id: "2",
-      type: "sent",
-      amount: "$2",
-      address: "0x456...def",
+      type: "received",
+      amount: "3",
       message: "Thanks for your help!",
-      date: "2025-01-09",
+      address: "0x5678...efgh",
+      timestamp: "2024-01-14 09:15",
       status: "completed",
+      txHash: "0x789012...345678",
     },
     {
       id: "3",
-      type: "received",
-      amount: "$1",
-      address: "0xabc...123",
-      message: "Congrats on your new job!",
-      date: "2025-01-08",
-      status: "completed",
+      type: "sent",
+      amount: "2",
+      message: "Coffee on me ☕",
+      address: "0x9abc...ijkl",
+      timestamp: "2024-01-13 16:45",
+      status: "pending",
+      txHash: "0xdef789...012345",
     },
     {
       id: "4",
-      type: "sent",
-      amount: "$5",
-      address: "0x789...ghi",
-      message: "Coffee on me! ☕",
-      date: "2025-01-07",
-      status: "pending",
-    },
-    {
-      id: "5",
       type: "received",
-      amount: "$2",
-      address: "0xdef...456",
-      message: "Welcome gift! 🎁",
-      date: "2025-01-06",
+      amount: "10",
+      message: "Congratulations on the promotion! 🎊",
+      address: "0xmnop...qrst",
+      timestamp: "2024-01-12 11:20",
       status: "completed",
+      txHash: "0x345678...9abcde",
     },
   ]
 
-  const filteredTransactions = mockTransactions
-    .filter((tx) => tx.type === activeTab)
-    .filter(
-      (tx) =>
-        tx.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tx.message.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
+  const filteredHistory = mockHistory.filter((item) => {
+    if (activeTab === "all") return true
+    return item.type === activeTab
+  })
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-5 h-5 text-mint" />
+      case "pending":
+        return <Clock className="w-5 h-5 text-champagne" />
+      case "failed":
+        return <XCircle className="w-5 h-5 text-error" />
+      default:
+        return null
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "text-white"
+        return "text-mint"
       case "pending":
-        return "text-gray"
+        return "text-champagne"
       case "failed":
-        return "text-gray"
+        return "text-error"
       default:
-        return "text-gray"
-    }
-  }
-
-  const getStatusBg = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-white text-black"
-      case "pending":
-        return "bg-gray text-white"
-      case "failed":
-        return "bg-gray text-white"
-      default:
-        return "bg-gray text-white"
+        return "text-secondary"
     }
   }
 
   return (
-    <div className="bg-black min-h-screen pt-24 pb-12">
-      <div className="container">
-        {/* Header */}
+    <div className="bg-soft min-h-screen pt-24 pb-12 bg-pattern">
+      <div className="container-modern">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            GIFT HISTORY
-          </h1>
-          <p className="text-xl text-gray">Track all your sent and received crypto gifts</p>
-        </div>
-
-        {/* Controls */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            {/* Tab Switcher */}
-            <div className="border border-white">
-              <div className="flex">
-                <button
-                  onClick={() => setActiveTab("sent")}
-                  className={`px-6 py-2 text-sm font-medium ${
-                    activeTab === "sent" ? "bg-white text-black" : "text-white"
-                  }`}
-                >
-                  <Send className="w-4 h-4 mr-2 inline" />
-                  SENT
-                </button>
-                <button
-                  onClick={() => setActiveTab("received")}
-                  className={`px-6 py-2 text-sm font-medium ${
-                    activeTab === "received" ? "bg-white text-black" : "text-white"
-                  }`}
-                >
-                  <Download className="w-4 h-4 mr-2 inline" />
-                  RECEIVED
-                </button>
-              </div>
-            </div>
-
-            {/* Search */}
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray" />
-              <Input
-                type="text"
-                placeholder="Search by address or message..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 input-simple w-full sm:w-80"
-              />
-            </div>
+          <div className={isLoaded ? "fade-in" : ""}>
+            <h1 className="text-4xl font-bold-modern text-primary mb-4">
+              Gift History
+            </h1>
+            <p className="text-xl font-regular-modern text-secondary">
+              Track all your sent and received crypto gifts
+            </p>
           </div>
         </div>
 
-        {/* Transaction List */}
-        <div className="space-y-4">
-          {filteredTransactions.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-white flex items-center justify-center mx-auto mb-6">
-                <Gift className="w-12 h-12" />
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                NO {activeTab.toUpperCase()} GIFTS YET
-              </h3>
-              <p className="text-gray mb-6">
-                {activeTab === "sent" ? "Start sending your first crypto gift!" : "You haven't received any gifts yet."}
+        {/* Tab Navigation */}
+        <div className={isLoaded ? "fade-in-delay-1" : ""}>
+          <div className="flex justify-center gap-4 mb-8">
+            {[
+              { key: "all", label: "All Gifts" },
+              { key: "sent", label: "Sent" },
+              { key: "received", label: "Received" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`px-6 py-3 rounded-full font-medium-modern transition-all ${
+                  activeTab === tab.key
+                    ? "bg-accent text-white"
+                    : "bg-surface/50 text-secondary hover:text-primary hover:bg-surface/70"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* History List */}
+        <div className={isLoaded ? "fade-in-delay-2" : ""}>
+          {filteredHistory.length === 0 ? (
+            <div className="card-modern text-center">
+              <Gift className="w-16 h-16 mx-auto mb-4 text-secondary" />
+              <h3 className="text-xl font-bold-modern text-primary mb-2">No Gifts Yet</h3>
+              <p className="text-secondary mb-6 font-regular-modern">
+                {activeTab === "sent"
+                  ? "You haven't sent any gifts yet"
+                  : activeTab === "received"
+                  ? "You haven't received any gifts yet"
+                  : "No gift history found"}
               </p>
-              <InteractiveButton variant="outline" size="md">
-                {activeTab === "sent" ? "CREATE GIFT" : "SHARE ADDRESS"}
+              <InteractiveButton variant="floating">
+                Send Your First Gift
               </InteractiveButton>
             </div>
           ) : (
-            filteredTransactions.map((transaction, index) => (
-              <div key={transaction.id} className="card-dark">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 bg-white flex items-center justify-center`}>
-                      {transaction.type === "sent" ? (
-                        <Send className="w-6 h-6" />
-                      ) : (
-                        <Download className="w-6 h-6" />
-                      )}
+            <div className="space-y-4">
+              {filteredHistory.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="card-modern hover:glow-soft transition-all duration-300"
+                  style={{ animationDelay: isLoaded ? `${index * 0.1}s` : "0s" }}
+                >
+                  <div className="flex items-center justify-between">
+                    {/* Left side - Gift info */}
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        item.type === "sent" ? "bg-cranberry" : "bg-mint"
+                      }`}>
+                        {item.type === "sent" ? (
+                          <ArrowUpRight className="w-6 h-6 text-white" />
+                        ) : (
+                          <ArrowDownLeft className="w-6 h-6 text-white" />
+                        )}
+                      </div>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold-modern text-primary">
+                            ${item.amount} USDT
+                          </h3>
+                          {getStatusIcon(item.status)}
+                        </div>
+                        <p className="text-secondary mb-1 font-regular-modern">{item.message}</p>
+                        <div className="flex items-center gap-4 text-sm font-regular-modern">
+                          <span className="text-secondary">
+                            {item.type === "sent" ? "To:" : "From:"} {item.address}
+                          </span>
+                          <span className="text-secondary">{item.timestamp}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="text-lg font-bold text-white">{transaction.amount} USDT</span>
-                        <span className={`px-3 py-1 text-xs font-medium border ${getStatusBg(transaction.status)}`}>
-                          {transaction.status.toUpperCase()}
-                        </span>
-                      </div>
-
-                      <div className="text-sm text-gray mb-1">
-                        <span>{transaction.type === "sent" ? "TO: " : "FROM: "}</span>
-                        <span className="font-mono text-white">{transaction.address}</span>
-                      </div>
-
-                      <div className="text-sm text-white">"{transaction.message}"</div>
+                    {/* Right side - Status and actions */}
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-medium-modern ${getStatusColor(item.status)}`}>
+                        {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                      </span>
+                      <button className="text-secondary hover:text-accent transition-colors">
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="flex items-center text-sm text-gray mb-2">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      {transaction.date}
+                  {/* Transaction hash */}
+                  <div className="mt-4 pt-4 border-t border-soft">
+                    <div className="flex items-center justify-between text-xs font-regular-modern">
+                      <span className="text-secondary">Transaction:</span>
+                      <span className="font-mono text-secondary">{item.txHash}</span>
                     </div>
-                    <InteractiveButton variant="outline" size="sm">
-                      VIEW DETAILS
-                    </InteractiveButton>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Stats Section */}
-        <div className="mt-16">
-          <div className="grid grid-3 gap-6">
-            <div className="card-dark text-center">
-              <div className="w-12 h-12 bg-white flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-6 h-6" />
+        {/* Stats Summary */}
+        <div className={isLoaded ? "fade-in-delay-2" : ""}>
+          <div className="card-modern mt-12">
+            <h3 className="text-xl font-bold-modern text-primary mb-6">Gift Summary</h3>
+            <div className="grid grid-3 gap-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold-modern text-accent mb-2">
+                  {mockHistory.filter(item => item.type === "sent").length}
+                </div>
+                <div className="text-sm text-secondary font-regular-modern">Gifts Sent</div>
               </div>
-              <div className="text-2xl font-bold text-white mb-2">$15.50</div>
-              <div className="text-sm text-gray">TOTAL SENT</div>
-            </div>
-
-            <div className="card-dark text-center">
-              <div className="w-12 h-12 bg-white flex items-center justify-center mx-auto mb-4">
-                <Users className="w-6 h-6" />
+              <div className="text-center">
+                <div className="text-3xl font-bold-modern text-cranberry mb-2">
+                  {mockHistory.filter(item => item.type === "received").length}
+                </div>
+                <div className="text-sm text-secondary font-regular-modern">Gifts Received</div>
               </div>
-              <div className="text-2xl font-bold text-white mb-2">8</div>
-              <div className="text-sm text-gray">RECIPIENTS</div>
-            </div>
-
-            <div className="card-dark text-center">
-              <div className="w-12 h-12 bg-white flex items-center justify-center mx-auto mb-4">
-                <DollarSign className="w-6 h-6" />
+              <div className="text-center">
+                <div className="text-3xl font-bold-modern text-mint mb-2">
+                  ${mockHistory.reduce((sum, item) => sum + parseFloat(item.amount), 0)}
+                </div>
+                <div className="text-sm text-secondary font-regular-modern">Total Value</div>
               </div>
-              <div className="text-2xl font-bold text-white mb-2">$8.25</div>
-              <div className="text-sm text-gray">TOTAL RECEIVED</div>
             </div>
           </div>
         </div>

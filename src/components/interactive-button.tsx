@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 interface InteractiveButtonProps {
   children: ReactNode
   onClick?: () => void
-  variant?: "primary" | "secondary" | "floating"
+  variant?: "primary" | "secondary" | "outline" | "floating"
   size?: "sm" | "md" | "lg"
   className?: string
   disabled?: boolean
@@ -22,9 +22,10 @@ export function InteractiveButton({
   disabled = false,
 }: InteractiveButtonProps) {
   const variants = {
-    primary: "btn-primary",
-    secondary: "btn-secondary",
-    floating: "btn-primary float-gentle",
+    primary: "btn-modern",
+    secondary: "btn-outline-modern",
+    outline: "btn-outline-modern",
+    floating: "btn-modern",
   }
 
   const sizes = {
@@ -38,7 +39,7 @@ export function InteractiveButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "font-semibold rounded-xl transition-all duration-300",
+        "font-modern font-semibold-modern",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         variants[variant],
         sizes[size],

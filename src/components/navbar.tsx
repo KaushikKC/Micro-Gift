@@ -15,28 +15,30 @@ export function Navbar() {
   ]
 
   return (
-    <nav className="bg-black border-b border-white">
-      <div className="container">
+    <nav className="bg-surface/90 backdrop-blur-md border-b border-soft sticky top-0 z-50">
+      <div className="container-modern">
         <div className="flex items-center justify-between h-16">
-          <div className="text-white">
-            <Link href="/" className="text-xl font-bold">
-              Morph-Gift
+          <div className="text-primary">
+            <Link href="/" className="text-xl font-bold-modern">
+              🎁 Morph-Gift
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-6">
             {navItems.map((item) => {
               const Icon = item.icon
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 text-white ${
-                    pathname === item.href ? "bg-white text-black" : ""
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
+                    pathname === item.href 
+                      ? "bg-accent text-white" 
+                      : "text-secondary hover:text-primary hover:bg-soft/50"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="text-sm font-medium-modern">{item.label}</span>
                 </Link>
               )
             })}
@@ -44,8 +46,10 @@ export function Navbar() {
 
           <div>
             <InteractiveButton variant="outline" size="sm">
-              <Wallet className="w-4 h-4 mr-2" />
-              CONNECT
+              <div className="flex items-center">
+                <Wallet className="w-4 h-4 mr-2" />
+              Connect
+              </div>
             </InteractiveButton>
           </div>
         </div>

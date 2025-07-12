@@ -1,163 +1,180 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect } from "react"
-import { Gift, Wallet } from "lucide-react"
+import { QrCode, Gift, Unlock } from "lucide-react"
 import { InteractiveButton } from "@/components/interactive-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function RedeemGiftPage() {
-  const [voucherId, setVoucherId] = useState("")
+  const [giftCode, setGiftCode] = useState("")
   const [isLoaded, setIsLoaded] = useState(false)
-  const [isRedeemed, setIsRedeemed] = useState(false)
-  const [isRedeeming, setIsRedeeming] = useState(false)
+  const [showGift, setShowGift] = useState(false)
+  const [giftData, setGiftData] = useState({
+    amount: "5",
+    message: "Happy Birthday! Enjoy your special day 🎉",
+    sender: "0x1234...abcd",
+    timestamp: "2024-01-15 14:30",
+  })
 
   useEffect(() => {
     setIsLoaded(true)
   }, [])
 
-  const handleRedeem = async () => {
-    setIsRedeeming(true)
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (giftCode.trim()) {
+      setShowGift(true)
+    }
+  }
 
-    // Simulate redemption process
+  const handleRedeem = () => {
+    // Simulate redemption
     setTimeout(() => {
-      setIsRedeeming(false)
-      setIsRedeemed(true)
+      setShowGift(false)
+      setGiftCode("")
     }, 2000)
   }
 
-  if (isRedeemed) {
-    return (
-      <div className="bg-black min-h-screen pt-24 pb-12">
-        <div className="container">
-          <div className="text-center">
-            <div className="card-simple max-w-md mx-auto">
-              <h1 className="text-5xl font-bold mb-6">
-                Gift Redeemed!
-              </h1>
-
-              <div className="card-dark mb-8">
-                <div className="space-y-4">
-                  <div className="text-3xl font-bold">$2 USDT</div>
-                  <div className="text-sm">
-                    <strong>From:</strong> 0xabc123...def456
-                  </div>
-                  <div className="text-sm">
-                    <strong>Message:</strong> "Congrats on your achievement! 🎉"
-                  </div>
-                  <div className="text-xs text-gray">Redeemed on Morph Network • TX: 0x789...012</div>
-                </div>
-              </div>
-
-              <p className="text-xl mb-8">The USDT has been transferred to your wallet successfully!</p>
-
-              <InteractiveButton variant="outline" size="lg">
-                View Transaction
-              </InteractiveButton>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="bg-black min-h-screen pt-24 pb-12">
-      <div className="container">
+    <div className="bg-soft min-h-screen pt-24 pb-12 bg-pattern">
+      <div className="container-modern">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            Redeem Your Crypto Gift
-          </h1>
-          <p className="text-xl text-gray">Enter your voucher ID to unwrap your surprise gift</p>
+          <div className={isLoaded ? "fade-in" : ""}>
+            <h1 className="text-4xl font-bold-modern text-primary mb-4">
+              Unwrap Your Surprise
+            </h1>
+            <p className="text-xl font-regular-modern text-secondary">
+              Enter your gift code to reveal and claim your crypto gift
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-2 gap-12 items-center">
-          {/* Redemption Form */}
-          <div>
-            <div className="card-dark">
-              <div className="space-y-6">
-                <div className="text-center mb-8">
-                  <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Gift className="w-10 h-10" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">Unwrap Your Gift</h3>
-                </div>
-
+        <div className="max-w-2xl mx-auto">
+          {/* Gift Code Form */}
+          <div className={isLoaded ? "fade-in-delay-1" : ""}>
+            <div className="card-modern">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="voucherId" className="text-white font-medium">
-                    Voucher ID
+                  <Label htmlFor="giftCode" className="text-primary font-medium-modern">
+                    Gift Code
                   </Label>
-                  <Input
-                    id="voucherId"
-                    type="text"
-                    placeholder="Enter voucher ID (e.g., XYZ123)"
-                    value={voucherId}
-                    onChange={(e) => setVoucherId(e.target.value)}
-                    className="input-simple text-center text-lg font-mono"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="giftCode"
+                      type="text"
+                      placeholder="Enter your 12-digit gift code"
+                      value={giftCode}
+                      onChange={(e) => setGiftCode(e.target.value)}
+                      className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all text-center font-mono text-lg font-regular-modern"
+                      maxLength={12}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary hover:text-accent transition-colors"
+                    >
+                      <QrCode className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-secondary text-center font-regular-modern">
+                    Scan QR code or enter the code manually
+                  </p>
                 </div>
 
-                <InteractiveButton variant="outline" size="lg" className="w-full" disabled={!voucherId.trim()}>
-                  <Wallet className="w-5 h-5 mr-2" />
-                  Connect Wallet
+                <InteractiveButton variant="floating" size="lg" className="w-full">
+                  <Unlock className="w-5 h-5 mr-2" />
+                  Unwrap Gift
                 </InteractiveButton>
-
-                <InteractiveButton
-                  onClick={handleRedeem}
-                  variant="primary"
-                  size="lg"
-                  className="w-full"
-                  disabled={!voucherId.trim() || isRedeeming}
-                >
-                  {isRedeeming ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                      Redeeming...
-                    </>
-                  ) : (
-                    <>
-                      <Gift className="w-5 h-5 mr-2" />
-                      Redeem Gift
-                    </>
-                  )}
-                </InteractiveButton>
-
-                <div className="text-center text-sm text-gray">
-                  Don't have a voucher ID? Ask the sender to share it with you.
-                </div>
-              </div>
+              </form>
             </div>
           </div>
 
-          {/* Gift Visualization */}
-          <div>
-            <div className="text-center">
-              <div className="card-simple">
-                <Gift className="w-16 h-16 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold mb-2">MYSTERY GIFT</h3>
-                <p className="text-sm">Enter voucher ID to reveal</p>
+          {/* Gift Display */}
+          {showGift && (
+            <div className={isLoaded ? "fade-in-delay-2" : ""}>
+              <div className="card-modern glow-cranberry text-center mt-8">
+                <div className="relative">
+                  {/* Gift Icon */}
+                  <div className="mb-6">
+                    <Gift className="w-20 h-20 mx-auto text-accent" />
+                  </div>
+
+                  {/* Gift Details */}
+                  <h3 className="text-2xl font-bold-modern text-primary mb-4">
+                    🎉 You've Got a Gift! 🎉
+                  </h3>
+                  
+                  <div className="text-4xl font-bold-modern text-accent mb-6">
+                    ${giftData.amount} USDT
+                  </div>
+
+                  <div className="space-y-4 mb-8">
+                    <div className="text-secondary font-regular-modern">
+                      <strong>From:</strong> {giftData.sender}
+                    </div>
+                    <div className="text-secondary font-regular-modern">
+                      <strong>Sent:</strong> {giftData.timestamp}
+                    </div>
+                    <div className="text-primary font-medium-modern">
+                      "{giftData.message}"
+                    </div>
+                  </div>
+
+                  <InteractiveButton variant="floating" size="lg" onClick={handleRedeem}>
+                    <Gift className="w-5 h-5 mr-2" />
+                    Claim Gift
+                  </InteractiveButton>
+                </div>
+              </div>
+
+              {/* Gift Info */}
+              <div className="card-modern mt-6">
+                <h4 className="text-lg font-semibold-modern text-primary mb-4">Gift Information</h4>
+                <div className="space-y-3 text-sm font-regular-modern">
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Network:</span>
+                    <span className="text-primary">Morph Blockchain</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Token:</span>
+                    <span className="text-primary">USDT</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Status:</span>
+                    <span className="text-mint">Ready to Claim</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Expires:</span>
+                    <span className="text-primary">Never</span>
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Gift Info */}
-            <div className="card-dark mt-8">
-              <h4 className="text-lg font-semibold text-white mb-4 text-center">Sample Gift Info</h4>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray">Voucher ID:</span>
-                  <span className="text-white font-mono">XYZ123</span>
+          {/* Instructions */}
+          <div className={isLoaded ? "fade-in-delay-2" : ""}>
+            <div className="card-modern mt-8">
+              <h3 className="text-xl font-bold-modern text-primary mb-4">How to Redeem</h3>
+              <div className="space-y-4 text-secondary font-regular-modern">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-accent rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                    1
+                  </div>
+                  <p>Enter the 12-digit gift code you received</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray">Amount:</span>
-                  <span className="text-white">$2 USDT</span>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-accent rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                    2
+                  </div>
+                  <p>Review the gift details and message from the sender</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray">From:</span>
-                  <span className="text-white font-mono">0xabc...def</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray">Message:</span>
-                  <span className="text-white">"Congrats!"</span>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-accent rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                    3
+                  </div>
+                  <p>Click "Claim Gift" to receive the crypto in your wallet</p>
                 </div>
               </div>
             </div>
