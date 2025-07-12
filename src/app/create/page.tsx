@@ -112,8 +112,10 @@ export default function CreateGiftPage() {
 
                 {/* Submit Button */}
                 <InteractiveButton variant="floating" size="lg" className="w-full">
-                  <Send className="w-5 h-5 mr-2" />
+                  <div className="flex items-center justify-center">
+                    <Send className="w-5 h-5 mr-2" />
                   Send Gift
+                  </div>
                 </InteractiveButton>
               </form>
             </div>

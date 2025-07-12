@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Wallet, Gift, History, Home } from "lucide-react"
-import { InteractiveButton } from "./interactive-button"
+import { Gift, History, Home } from "lucide-react"
+import { ConnectWallet } from "./connect-wallet"
 
 export function Navbar() {
   const pathname = usePathname()
@@ -45,12 +45,7 @@ export function Navbar() {
           </div>
 
           <div>
-            <InteractiveButton variant="outline" size="sm">
-              <div className="flex items-center">
-                <Wallet className="w-4 h-4 mr-2" />
-              Connect
-              </div>
-            </InteractiveButton>
+            <ConnectWallet />
           </div>
         </div>
       </div>

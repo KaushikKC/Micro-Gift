@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight, Zap, Shield, Globe, Gift } from "lucide-react"
 import { InteractiveButton } from "@/components/interactive-button"
+import { Web3ErrorBoundary } from "@/components/web3-error-boundary"
 import clsx from "clsx"
 
 export default function HomePage() {
@@ -51,6 +52,18 @@ export default function HomePage() {
           ))}
         </div>
       )}
+
+      {/* Wallet Status Section
+      <section className="section-modern pt-8">
+        <div className="container-modern">
+          <div className="max-w-md mx-auto space-y-4">
+            <Web3ErrorBoundary>
+              <Web3Status />
+              <ChainDebug />
+            </Web3ErrorBoundary>
+          </div>
+        </div>
+      </section> */}
 
       {/* Hero Section */}
       <section className="section-modern pt-32">

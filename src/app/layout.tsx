@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
+import { PrivyWagmiProvider } from "@/components/privy-provider"
 
 export const metadata: Metadata = {
   title: "Morph Gift - Send Crypto Gifts Instantly",
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-modern antialiased">
-        <Navbar />
-        <main>{children}</main>
+        <PrivyWagmiProvider>
+          <Navbar />
+          <main>{children}</main>
+        </PrivyWagmiProvider>
       </body>
     </html>
   )
