@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight, Zap, Shield, Globe, Gift } from "lucide-react"
 import { InteractiveButton } from "@/components/interactive-button"
-import { Web3ErrorBoundary } from "@/components/web3-error-boundary"
 import clsx from "clsx"
 
 export default function HomePage() {
@@ -211,7 +210,7 @@ export default function HomePage() {
         <div className="container-modern">
           <div className="text-center">
             <p className="text-secondary font-regular-modern">
-              Made with ❤️ for the crypto community
+              Made with ❤️ for the morph community
             </p>
           </div>
         </div>

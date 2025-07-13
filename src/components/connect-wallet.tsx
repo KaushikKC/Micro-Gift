@@ -61,8 +61,11 @@ export function ConnectWallet() {
         size="sm"
         onClick={login}
       >
+        <div className="flex items-center">
         <Wallet className="w-4 h-4 mr-2" />
         Connect Wallet
+        </div>
+        
       </InteractiveButton>
     </div>
   )
