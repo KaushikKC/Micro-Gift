@@ -1,13 +1,28 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { QrCode, Send, Gift } from "lucide-react"
+import { QrCode, Send, Gift, CheckCircle, AlertCircle } from "lucide-react"
 import { InteractiveButton } from "@/components/interactive-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { usePrivy } from '@privy-io/react-auth'
+import { getGiftVoucherContractWithSigner, getGiftVoucherContract, GIFT_VOUCHER_ADDRESS } from '@/lib/web3'
+import { useToast } from '@/hooks/use-toast'
+import { ethers } from 'ethers'
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface VoucherDetails {
+  sender: string
+  recipient: string
+  amount: bigint
+  message: string
+  redeemed: boolean
+  createdAt: bigint
+}
 
 export default function CreateGiftPage() {
   const [formData, setFormData] = useState({
@@ -17,19 +32,173 @@ export default function CreateGiftPage() {
   })
   const [isLoaded, setIsLoaded] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [txHash, setTxHash] = useState<string>("")
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [voucherId, setVoucherId] = useState<string>("")
+  const [contractBalance, setContractBalance] = useState<string>("0")
+  const [gasEstimate, setGasEstimate] = useState<string>("0.01")
+  
+  const { toast } = useToast()
+  const { authenticated, user } = usePrivy()
 
   useEffect(() => {
     setIsLoaded(true)
+    // Load contract balance on component mount
+    loadContractBalance()
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setShowSuccess(true)
-    setTimeout(() => setShowSuccess(false), 3000)
+  // Load contract USDT balance
+  const loadContractBalance = async () => {
+    try {
+      const contract = getGiftVoucherContract()
+      const balance = await contract.getContractUSDTBalance()
+      setContractBalance(ethers.formatUnits(balance, 6)) // USDT has 6 decimals
+    } catch (error) {
+      console.error("Failed to load contract balance:", error)
+    }
+  }
+
+  // Validate Ethereum address
+  function isValidAddress(address: string): boolean {
+    return /^0x[a-fA-F0-9]{40}$/.test(address)
+  }
+
+  // Estimate gas for transaction
+  const estimateGas = async () => {
+    if (!authenticated || !user?.wallet?.address || !formData.recipient || !formData.amount) {
+      return
+    }
+
+    try {
+      // Get the provider from Privy wallet
+      const provider = (user.wallet as any).provider
+      if (!provider) {
+        console.error("No provider available from Privy wallet")
+        return
+      }
+
+      const contract = await getGiftVoucherContractWithSigner(provider)
+      const amountNum = Number(formData.amount)
+      
+      // Estimate gas for createVoucher function
+      const gasEstimate = await contract.createVoucher.estimateGas(
+        formData.recipient,
+        amountNum * 1e6,
+        formData.message || ""
+      )
+      
+      // Get current gas price from the provider
+      const ethersProvider = new ethers.BrowserProvider(provider)
+      const feeData = await ethersProvider.getFeeData()
+      const gasPrice = feeData.gasPrice ?? BigInt(0)
+      const gasCost = gasEstimate * gasPrice
+
+      // Convert to ETH (approximate cost)
+      const gasCostEth = ethers.formatEther(gasCost.toString())
+      setGasEstimate((parseFloat(gasCostEth) * 1000).toFixed(3)) // Convert to approximate USD
+    } catch (error) {
+      console.error("Gas estimation failed:", error)
+      setGasEstimate("0.01") // Fallback
+    }
+  }
+
+  // Update gas estimate when form changes
+  useEffect(() => {
+    if (formData.recipient && formData.amount && authenticated && user?.wallet?.address) {
+      estimateGas()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.recipient, formData.amount, authenticated, user?.wallet?.address])
+
+  const handleSendGift = async () => {
+    if (!authenticated || !user?.wallet?.address) {
+      toast({ title: 'Wallet not connected', description: 'Please connect your wallet to send a gift.', variant: 'destructive' })
+      return
+    }
+    
+    // Input validation
+    if (!isValidAddress(formData.recipient)) {
+      toast({ title: 'Invalid address', description: 'Please enter a valid Ethereum address.', variant: 'destructive' })
+      return
+    }
+    
+    const amountNum = Number(formData.amount)
+    if (isNaN(amountNum) || amountNum < 1 || amountNum > 5) {
+      toast({ title: 'Invalid amount', description: 'Amount must be between 1 and 5 USDT.', variant: 'destructive' })
+      return
+    }
+    
+    if (formData.message.length > 50) {
+      toast({ title: 'Message too long', description: 'Message must be 50 characters or less.', variant: 'destructive' })
+      return
+    }
+    
+    setLoading(true)
+    try {
+      // Get Privy embedded wallet provider
+      let provider = (user.wallet as any).provider
+      
+      // Fallback to window.ethereum for external wallets
+      if (!provider && typeof window !== 'undefined' && (window as any).ethereum) {
+        provider = (window as any).ethereum
+        console.log('Falling back to window.ethereum')
+      }
+      
+      if (!provider) {
+        toast({ title: 'Wallet not connected', description: 'Could not access wallet provider.', variant: 'destructive' })
+        setLoading(false)
+        return
+      }
+
+      console.log('Using provider:', provider)
+      const contract = await getGiftVoucherContractWithSigner(provider)
+      
+      // USDT has 6 decimals
+      const tx = await contract.createVoucher(formData.recipient, amountNum * 1e6, formData.message)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const receipt = await tx.wait()
+      
+      setTxHash(tx.hash)
+      setShowSuccess(true)
+      toast({ title: 'Gift Sent!', description: 'Your crypto gift has been sent successfully.' })
+      setFormData({ recipient: '', amount: '', message: '' })
+      
+      // Reload contract balance
+      await loadContractBalance()
+      
+      setTimeout(() => setShowSuccess(false), 5000)
+    } catch (err) {
+      console.error('Transaction error:', err)
+      let message = 'Transaction failed.'
+      
+      if (typeof err === 'object' && err !== null) {
+        if ('reason' in err && typeof (err as { reason?: string }).reason === 'string') {
+          message = (err as { reason?: string }).reason!
+        } else if ('data' in err && typeof (err as { data?: { message?: string } }).data?.message === 'string') {
+          message = (err as { data?: { message?: string } }).data!.message!
+        } else if ('message' in err && typeof (err as { message?: string }).message === 'string') {
+          message = (err as { message?: string }).message!
+        }
+      }
+      
+      if (typeof message === 'string' && message.includes('USDT transfer failed')) {
+        message = 'You may not have enough USDT or have not approved the contract.'
+      }
+      
+      toast({ title: 'Error', description: message, variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const shortenAddress = (address: string) => {
+    if (!address) return ""
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
   return (
@@ -43,6 +212,9 @@ export default function CreateGiftPage() {
             <p className="text-xl font-regular-modern text-secondary">
               Send a personalized crypto gift to anyone, anywhere in the world
             </p>
+            <div className="mt-4 text-sm text-secondary font-regular-modern">
+              Contract Balance: {contractBalance} USDT
+            </div>
           </div>
         </div>
 
@@ -50,7 +222,7 @@ export default function CreateGiftPage() {
           {/* Form Section */}
           <div className={isLoaded ? "fade-in-delay-1" : ""}>
             <div className="card-modern">
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                 {/* Recipient Address */}
                 <div className="space-y-2">
                   <Label htmlFor="recipient" className="text-primary font-medium-modern">
@@ -63,15 +235,28 @@ export default function CreateGiftPage() {
                       placeholder="0x1234...abcd"
                       value={formData.recipient}
                       onChange={(e) => handleInputChange("recipient", e.target.value)}
-                      className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all font-regular-modern"
+                      className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all font-regular-modern pr-12"
                     />
                     <button
                       type="button"
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary hover:text-accent transition-colors"
+                      title="Scan QR Code"
                     >
                       <QrCode className="w-5 h-5" />
                     </button>
                   </div>
+                  {formData.recipient && !isValidAddress(formData.recipient) && (
+                    <div className="flex items-center text-red-500 text-sm">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      Invalid Ethereum address
+                    </div>
+                  )}
+                  {formData.recipient && isValidAddress(formData.recipient) && (
+                    <div className="flex items-center text-green-500 text-sm">
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      Valid address
+                    </div>
+                  )}
                 </div>
 
                 {/* Gift Amount */}
@@ -96,7 +281,7 @@ export default function CreateGiftPage() {
                 {/* Message */}
                 <div className="space-y-2">
                   <Label htmlFor="message" className="text-primary font-medium-modern">
-                    Personal Message
+                    Personal Message (Optional)
                   </Label>
                   <Textarea
                     id="message"
@@ -107,16 +292,49 @@ export default function CreateGiftPage() {
                     className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none font-regular-modern"
                     rows={3}
                   />
-                  <div className="text-right text-sm text-secondary font-regular-modern">{formData.message.length}/50</div>
+                  <div className="text-right text-sm text-secondary font-regular-modern">
+                    {formData.message.length}/50
+                  </div>
+                </div>
+
+                {/* Connection Status */}
+                <div className="text-sm font-regular-modern">
+                  <div className="flex items-center justify-between">
+                    <span className="text-secondary">Wallet Status:</span>
+                    <span className={authenticated ? "text-green-500" : "text-red-500"}>
+                      {authenticated ? "Connected" : "Not Connected"}
+                    </span>
+                  </div>
+                  {authenticated && user?.wallet?.address && (
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-secondary">Your Address:</span>
+                      <span className="text-primary font-mono text-xs">
+                        {shortenAddress(user.wallet.address)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit Button */}
-                <InteractiveButton variant="floating" size="lg" className="w-full">
+                <InteractiveButton
+                  type="button"
+                  onClick={handleSendGift}
+                  variant="floating"
+                  size="lg"
+                  className="w-full"
+                  disabled={loading || !authenticated || !formData.recipient || !formData.amount}
+                >
                   <div className="flex items-center justify-center">
                     <Send className="w-5 h-5 mr-2" />
-                  Send Gift
+                    {loading ? 'Sending Gift...' : 'Send Gift'}
                   </div>
                 </InteractiveButton>
+
+                {!authenticated && (
+                  <div className="text-center text-sm text-secondary font-regular-modern">
+                    Please connect your wallet to send gifts
+                  </div>
+                )}
               </form>
             </div>
           </div>
@@ -131,10 +349,10 @@ export default function CreateGiftPage() {
                   <Gift className="w-16 h-16 mx-auto mb-4 text-accent" />
                   <h4 className="text-xl font-semibold-modern text-primary mb-2">CRYPTO GIFT</h4>
                   <div className="text-3xl font-bold-modern text-accent mb-4">
-                    {formData.amount ? `$${formData.amount}` : "$0"}
+                    {formData.amount ? `$${formData.amount}` : "$0"} USDT
                   </div>
                   <div className="text-sm text-secondary mb-4 font-regular-modern">
-                    <strong>To:</strong> {formData.recipient || "0x1234...abcd"}
+                    <strong>To:</strong> {formData.recipient ? shortenAddress(formData.recipient) : "0x1234...abcd"}
                   </div>
                   <div className="text-sm text-secondary font-regular-modern">
                     <strong>Message:</strong> {formData.message || "Your personalized message here"}
@@ -144,23 +362,31 @@ export default function CreateGiftPage() {
 
               {/* Gift Details */}
               <div className="card-modern mt-8">
-                <h4 className="text-lg font-semibold-modern text-primary mb-4">Gift Details</h4>
+                <h4 className="text-lg font-semibold-modern text-primary mb-4">Transaction Details</h4>
                 <div className="space-y-3 text-sm font-regular-modern">
                   <div className="flex justify-between">
                     <span className="text-secondary">Network:</span>
-                    <span className="text-primary">Morph Blockchain</span>
+                    <span className="text-primary">Morph Holesky</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-secondary">Token:</span>
                     <span className="text-primary">USDT</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-secondary">Gas Fee:</span>
-                    <span className="text-accent">~$0.01</span>
+                    <span className="text-secondary">Contract:</span>
+                    <span className="text-primary font-mono text-xs">
+                      {shortenAddress(GIFT_VOUCHER_ADDRESS)}
+                    </span>
                   </div>
-                  <div className="flex justify-between font-semibold-modern">
-                    <span className="text-secondary">Total:</span>
-                    <span className="text-primary">${formData.amount || "0"}.01</span>
+                  <div className="flex justify-between">
+                    <span className="text-secondary">Est. Gas Fee:</span>
+                    <span className="text-accent">~$0.{gasEstimate}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold-modern border-t pt-2">
+                    <span className="text-secondary">Total Cost:</span>
+                    <span className="text-primary">
+                      ${formData.amount || "0"} + Gas
+                    </span>
                   </div>
                 </div>
               </div>
@@ -173,11 +399,28 @@ export default function CreateGiftPage() {
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="card-modern glow-mint text-center max-w-md mx-4 scale-in">
               <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
-                <Gift className="w-8 h-8 text-primary" />
+                <Gift className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold-modern text-primary mb-2">Gift Sent!</h3>
-              <p className="text-secondary mb-4 font-regular-modern">Your crypto gift has been successfully sent to the recipient.</p>
-              <div className="text-xs text-secondary font-mono font-regular-modern">TX: 0xabc123...def456</div>
+              <h3 className="text-2xl font-bold-modern text-primary mb-2">Gift Sent Successfully!</h3>
+              <p className="text-secondary mb-4 font-regular-modern">
+                Your crypto gift has been successfully sent to the recipient.
+              </p>
+              {txHash && (
+                <div className="text-xs text-secondary font-mono font-regular-modern mb-2">
+                  TX: {shortenAddress(txHash)}
+                </div>
+              )}
+              {voucherId && (
+                <div className="text-xs text-secondary font-mono font-regular-modern">
+                  Voucher ID: {shortenAddress(voucherId)}
+                </div>
+              )}
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="mt-4 text-accent hover:text-accent-dark transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         )}

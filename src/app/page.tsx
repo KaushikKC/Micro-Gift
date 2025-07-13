@@ -5,6 +5,9 @@ import Link from "next/link"
 import { ArrowRight, Zap, Shield, Globe, Gift } from "lucide-react"
 import { InteractiveButton } from "@/components/interactive-button"
 import clsx from "clsx"
+// import { Web3ErrorBoundary } from "@/components/web3-error-boundary"
+// import { Web3Status } from "@/components/web3-status"
+// import { ChainDebug } from "@/components/chain-debug"
 
 export default function HomePage() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -52,8 +55,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Wallet Status Section
-      <section className="section-modern pt-8">
+      {/* Wallet Status Section */}
+      {/* <section className="section-modern pt-8">
         <div className="container-modern">
           <div className="max-w-md mx-auto space-y-4">
             <Web3ErrorBoundary>

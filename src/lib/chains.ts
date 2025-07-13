@@ -32,4 +32,5 @@ export const morphHolesky = defineChain({
       blockCreated: 1,
     },
   },
+  network: ''
 }) 

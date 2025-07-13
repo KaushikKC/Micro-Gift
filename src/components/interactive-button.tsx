@@ -11,6 +11,7 @@ interface InteractiveButtonProps {
   size?: "sm" | "md" | "lg"
   className?: string
   disabled?: boolean
+  type?: "button" | "submit" | "reset"
 }
 
 export function InteractiveButton({
@@ -20,6 +21,7 @@ export function InteractiveButton({
   size = "md",
   className,
   disabled = false,
+  type = "button",
 }: InteractiveButtonProps) {
   const variants = {
     primary: "btn-modern",
@@ -36,6 +38,7 @@ export function InteractiveButton({
 
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       className={cn(
