@@ -6,6 +6,77 @@ export const GIFT_VOUCHER_ABI = [
 	{
 		"inputs": [
 			{
+				"internalType": "address[]",
+				"name": "_recipients",
+				"type": "address[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "_amounts",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "string[]",
+				"name": "_messages",
+				"type": "string[]"
+			}
+		],
+		"name": "batchCreateVouchers",
+		"outputs": [
+			{
+				"internalType": "bytes32[]",
+				"name": "",
+				"type": "bytes32[]"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_amount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_message",
+				"type": "string"
+			}
+		],
+		"name": "createVoucher",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "_voucherId",
+				"type": "bytes32"
+			}
+		],
+		"name": "redeemVoucher",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "address",
 				"name": "_usdtAddress",
 				"type": "address"
@@ -26,6 +97,19 @@ export const GIFT_VOUCHER_ABI = [
 		],
 		"name": "BatchVouchersCreated",
 		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "_voucherId",
+				"type": "bytes32"
+			}
+		],
+		"name": "refundVoucher",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	},
 	{
 		"anonymous": false,
@@ -116,77 +200,6 @@ export const GIFT_VOUCHER_ABI = [
 	},
 	{
 		"inputs": [],
-		"name": "VOUCHER_EXPIRY",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address[]",
-				"name": "_recipients",
-				"type": "address[]"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "_amounts",
-				"type": "uint256[]"
-			},
-			{
-				"internalType": "string[]",
-				"name": "_messages",
-				"type": "string[]"
-			}
-		],
-		"name": "batchCreateVouchers",
-		"outputs": [
-			{
-				"internalType": "bytes32[]",
-				"name": "",
-				"type": "bytes32[]"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_recipient",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_amount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string",
-				"name": "_message",
-				"type": "string"
-			}
-		],
-		"name": "createVoucher",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "getContractUSDTBalance",
 		"outputs": [
 			{
@@ -250,32 +263,6 @@ export const GIFT_VOUCHER_ABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "_voucherId",
-				"type": "bytes32"
-			}
-		],
-		"name": "redeemVoucher",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "_voucherId",
-				"type": "bytes32"
-			}
-		],
-		"name": "refundVoucher",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [],
 		"name": "usdt",
 		"outputs": [
@@ -283,6 +270,19 @@ export const GIFT_VOUCHER_ABI = [
 				"internalType": "contract IERC20",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "VOUCHER_EXPIRY",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -335,8 +335,9 @@ export const GIFT_VOUCHER_ABI = [
 ]
 
 // Contract addresses (update as needed)
-export const GIFT_VOUCHER_ADDRESS = "0x86cF1433a3D3664e0c3b7C1725F9342680C68d4e"
-export const MOCK_USDT_ADDRESS = "0x70B06FAcD25dC5d9B7F684213fe6739343C76C07"
+export const GIFT_VOUCHER_ADDRESS = "0xA31E9F57e243Bc79fb77370dD1E969f3E48Eeed6"
+export const MOCK_USDT_ADDRESS = "0x5B2089F23e6FEFf773f9b446548b7e49282990E0"
+
 
 // Morph Holesky network configuration
 export const MORPH_HOLESKY_CHAIN_ID = 2810
