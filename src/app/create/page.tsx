@@ -1,27 +1,44 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { QrCode, Send, Gift, CheckCircle, AlertCircle } from "lucide-react"
-import { InteractiveButton } from "@/components/interactive-button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { usePrivy } from '@privy-io/react-auth'
-import { getGiftVoucherContractWithSigner, getGiftVoucherContract, GIFT_VOUCHER_ADDRESS } from '@/lib/web3'
-import { useToast } from '@/hooks/use-toast'
-import { ethers } from 'ethers'
+import type React from "react";
+import { useState, useEffect } from "react";
+import { QrCode, Send, Gift, CheckCircle, AlertCircle } from "lucide-react";
+import { InteractiveButton } from "@/components/interactive-button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { usePrivy } from "@privy-io/react-auth";
+import {
+  getGiftVoucherContractWithSigner,
+  getGiftVoucherContract,
+  GIFT_VOUCHER_ADDRESS,
+  MOCK_USDT_ADDRESS,
+} from "@/lib/web3";
+import { useToast } from "@/hooks/use-toast";
+import { ethers } from "ethers";
+
+// Standard ERC20 ABI for allowance/approve
+const ERC20_ABI = [
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+];
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface VoucherDetails {
-  sender: string
-  recipient: string
-  amount: bigint
-  message: string
-  redeemed: boolean
-  createdAt: bigint
+  sender: string;
+  recipient: string;
+  amount: bigint;
+  message: string;
+  redeemed: boolean;
+  createdAt: bigint;
 }
 
 export default function CreateGiftPage() {
@@ -29,177 +46,287 @@ export default function CreateGiftPage() {
     recipient: "",
     amount: "",
     message: "",
-  })
-  const [isLoaded, setIsLoaded] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [txHash, setTxHash] = useState<string>("")
+  });
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [txHash, setTxHash] = useState<string>("");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [voucherId, setVoucherId] = useState<string>("")
-  const [contractBalance, setContractBalance] = useState<string>("0")
-  const [gasEstimate, setGasEstimate] = useState<string>("0.01")
-  
-  const { toast } = useToast()
-  const { authenticated, user } = usePrivy()
+  const [voucherId, setVoucherId] = useState<string>("");
+  const [contractBalance, setContractBalance] = useState<string>("0");
+  const [gasEstimate, setGasEstimate] = useState<string>("0.01");
+
+  const { toast } = useToast();
+  const { authenticated, user } = usePrivy();
 
   useEffect(() => {
-    setIsLoaded(true)
+    setIsLoaded(true);
     // Load contract balance on component mount
-    loadContractBalance()
-  }, [])
+    loadContractBalance();
+  }, []);
 
   // Load contract USDT balance
   const loadContractBalance = async () => {
     try {
-      const contract = getGiftVoucherContract()
-      const balance = await contract.getContractUSDTBalance()
-      setContractBalance(ethers.formatUnits(balance, 6)) // USDT has 6 decimals
+      const contract = getGiftVoucherContract();
+      const balance = await contract.getContractUSDTBalance();
+      setContractBalance(ethers.formatUnits(balance, 6)); // USDT has 6 decimals
     } catch (error) {
-      console.error("Failed to load contract balance:", error)
+      console.error("Failed to load contract balance:", error);
     }
-  }
+  };
 
   // Validate Ethereum address
   function isValidAddress(address: string): boolean {
-    return /^0x[a-fA-F0-9]{40}$/.test(address)
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
   }
 
   // Estimate gas for transaction
   const estimateGas = async () => {
-    if (!authenticated || !user?.wallet?.address || !formData.recipient || !formData.amount) {
-      return
+    if (
+      !authenticated ||
+      !user?.wallet?.address ||
+      !formData.recipient ||
+      !formData.amount
+    ) {
+      return;
     }
 
     try {
       // Get the provider from Privy wallet
-      const provider = (user.wallet as any).provider
+      const provider = (user.wallet as any).provider;
       if (!provider) {
-        console.error("No provider available from Privy wallet")
-        return
+        console.error("No provider available from Privy wallet");
+        return;
       }
 
-      const contract = await getGiftVoucherContractWithSigner(provider)
-      const amountNum = Number(formData.amount)
-      
+      const contract = await getGiftVoucherContractWithSigner(provider);
+      const amountNum = Number(formData.amount);
+
       // Estimate gas for createVoucher function
       const gasEstimate = await contract.createVoucher.estimateGas(
         formData.recipient,
         amountNum * 1e6,
         formData.message || ""
-      )
-      
+      );
+
       // Get current gas price from the provider
-      const ethersProvider = new ethers.BrowserProvider(provider)
-      const feeData = await ethersProvider.getFeeData()
-      const gasPrice = feeData.gasPrice ?? BigInt(0)
-      const gasCost = gasEstimate * gasPrice
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const feeData = await ethersProvider.getFeeData();
+      const gasPrice = feeData.gasPrice ?? BigInt(0);
+      const gasCost = gasEstimate * gasPrice;
 
       // Convert to ETH (approximate cost)
-      const gasCostEth = ethers.formatEther(gasCost.toString())
-      setGasEstimate((parseFloat(gasCostEth) * 1000).toFixed(3)) // Convert to approximate USD
+      const gasCostEth = ethers.formatEther(gasCost.toString());
+      setGasEstimate((parseFloat(gasCostEth) * 1000).toFixed(3)); // Convert to approximate USD
     } catch (error) {
-      console.error("Gas estimation failed:", error)
-      setGasEstimate("0.01") // Fallback
+      console.error("Gas estimation failed:", error);
+      setGasEstimate("0.01"); // Fallback
     }
-  }
+  };
 
   // Update gas estimate when form changes
   useEffect(() => {
-    if (formData.recipient && formData.amount && authenticated && user?.wallet?.address) {
-      estimateGas()
+    if (
+      formData.recipient &&
+      formData.amount &&
+      authenticated &&
+      user?.wallet?.address
+    ) {
+      estimateGas();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.recipient, formData.amount, authenticated, user?.wallet?.address])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    formData.recipient,
+    formData.amount,
+    authenticated,
+    user?.wallet?.address,
+  ]);
 
   const handleSendGift = async () => {
     if (!authenticated || !user?.wallet?.address) {
-      toast({ title: 'Wallet not connected', description: 'Please connect your wallet to send a gift.', variant: 'destructive' })
-      return
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to send a gift.",
+        variant: "destructive",
+      });
+      return;
     }
-    
     // Input validation
     if (!isValidAddress(formData.recipient)) {
-      toast({ title: 'Invalid address', description: 'Please enter a valid Ethereum address.', variant: 'destructive' })
-      return
+      toast({
+        title: "Invalid address",
+        description: "Please enter a valid Ethereum address.",
+        variant: "destructive",
+      });
+      return;
     }
-    
-    const amountNum = Number(formData.amount)
+    const amountNum = Number(formData.amount);
     if (isNaN(amountNum) || amountNum < 1 || amountNum > 5) {
-      toast({ title: 'Invalid amount', description: 'Amount must be between 1 and 5 USDT.', variant: 'destructive' })
-      return
+      toast({
+        title: "Invalid amount",
+        description: "Amount must be between 1 and 5 USDT.",
+        variant: "destructive",
+      });
+      return;
     }
-    
     if (formData.message.length > 50) {
-      toast({ title: 'Message too long', description: 'Message must be 50 characters or less.', variant: 'destructive' })
-      return
+      toast({
+        title: "Message too long",
+        description: "Message must be 50 characters or less.",
+        variant: "destructive",
+      });
+      return;
     }
-    
-    setLoading(true)
+    setLoading(true);
     try {
       // Get Privy embedded wallet provider
-      let provider = (user.wallet as any).provider
-      
+      let provider = (user.wallet as any).provider;
       // Fallback to window.ethereum for external wallets
-      if (!provider && typeof window !== 'undefined' && (window as any).ethereum) {
-        provider = (window as any).ethereum
-        console.log('Falling back to window.ethereum')
+      if (
+        !provider &&
+        typeof window !== "undefined" &&
+        (window as any).ethereum
+      ) {
+        provider = (window as any).ethereum;
+        console.log("Falling back to window.ethereum");
       }
-      
       if (!provider) {
-        toast({ title: 'Wallet not connected', description: 'Could not access wallet provider.', variant: 'destructive' })
-        setLoading(false)
-        return
+        toast({
+          title: "Wallet not connected",
+          description: "Could not access wallet provider.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
-
-      console.log('Using provider:', provider)
-      const contract = await getGiftVoucherContractWithSigner(provider)
-      
-      // USDT has 6 decimals
-      const tx = await contract.createVoucher(formData.recipient, amountNum * 1e6, formData.message)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const receipt = await tx.wait()
-      
-      setTxHash(tx.hash)
-      setShowSuccess(true)
-      toast({ title: 'Gift Sent!', description: 'Your crypto gift has been sent successfully.' })
-      setFormData({ recipient: '', amount: '', message: '' })
-      
-      // Reload contract balance
-      await loadContractBalance()
-      
-      setTimeout(() => setShowSuccess(false), 5000)
-    } catch (err) {
-      console.error('Transaction error:', err)
-      let message = 'Transaction failed.'
-      
-      if (typeof err === 'object' && err !== null) {
-        if ('reason' in err && typeof (err as { reason?: string }).reason === 'string') {
-          message = (err as { reason?: string }).reason!
-        } else if ('data' in err && typeof (err as { data?: { message?: string } }).data?.message === 'string') {
-          message = (err as { data?: { message?: string } }).data!.message!
-        } else if ('message' in err && typeof (err as { message?: string }).message === 'string') {
-          message = (err as { message?: string }).message!
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      // 1 USDT = 1,000,000 units (6 decimals)
+      const usdtAmount = amountNum * 1e6;
+      // Check allowance
+      const usdtContract = new ethers.Contract(
+        MOCK_USDT_ADDRESS,
+        ERC20_ABI,
+        signer
+      );
+      const allowance = await usdtContract.allowance(
+        user.wallet.address,
+        GIFT_VOUCHER_ADDRESS
+      );
+      if (allowance < usdtAmount) {
+        // Prompt approval
+        toast({
+          title: "Approval Needed",
+          description: "Approving USDT for gifting...",
+          variant: "default",
+        });
+        const approveTx = await usdtContract.approve(
+          GIFT_VOUCHER_ADDRESS,
+          usdtAmount
+        );
+        await approveTx.wait();
+        toast({
+          title: "USDT Approved",
+          description: "USDT approved for gifting. Sending gift now...",
+        });
+      }
+      // Now send the gift
+      const contract = await getGiftVoucherContractWithSigner(provider);
+      const tx = await contract.createVoucher(
+        formData.recipient,
+        usdtAmount,
+        formData.message
+      );
+      const receipt = await tx.wait();
+      // Extract voucherId from VoucherCreated event
+      let voucherId = "";
+      console.log("receipt", receipt);
+      if (receipt && receipt.logs) {
+        for (const log of receipt.logs) {
+          try {
+            const parsed = contract.interface.parseLog(log);
+            console.log("parsed", parsed);
+            if (parsed && parsed.name === "VoucherCreated") {
+              console.log("parsed.args", parsed.args);
+              console.log("parsed.args.voucherId", parsed.args.voucherId);
+              voucherId = parsed.args.voucherId;
+              break;
+            }
+          } catch (e) {
+            /* not this log */
+          }
         }
       }
-      
-      if (typeof message === 'string' && message.includes('USDT transfer failed')) {
-        message = 'You may not have enough USDT or have not approved the contract.'
+      setVoucherId(voucherId);
+      setTxHash(tx.hash);
+      setShowSuccess(true);
+      toast({
+        title: "Gift Sent!",
+        description: "Your crypto gift has been sent successfully.",
+      });
+      setFormData({ recipient: "", amount: "", message: "" });
+      // POST to backend API
+      await fetch("/api/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: user.wallet.address,
+          recipient: formData.recipient,
+          amount: formData.amount,
+          message: formData.message,
+          txHash: tx.hash,
+          voucherId,
+          timestamp: new Date().toISOString(),
+          status: "completed",
+        }),
+      });
+      // Reload contract balance
+      await loadContractBalance();
+      setTimeout(() => setShowSuccess(false), 5000);
+    } catch (err) {
+      console.error("Transaction error:", err);
+      let message = "Transaction failed.";
+      if (typeof err === "object" && err !== null) {
+        if (
+          "reason" in err &&
+          typeof (err as { reason?: string }).reason === "string"
+        ) {
+          message = (err as { reason?: string }).reason!;
+        } else if (
+          "data" in err &&
+          typeof (err as { data?: { message?: string } }).data?.message ===
+            "string"
+        ) {
+          message = (err as { data?: { message?: string } }).data!.message!;
+        } else if (
+          "message" in err &&
+          typeof (err as { message?: string }).message === "string"
+        ) {
+          message = (err as { message?: string }).message!;
+        }
       }
-      
-      toast({ title: 'Error', description: message, variant: 'destructive' })
+      if (
+        typeof message === "string" &&
+        message.includes("USDT transfer failed")
+      ) {
+        message =
+          "You may not have enough USDT or have not approved the contract.";
+      }
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const shortenAddress = (address: string) => {
-    if (!address) return ""
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }
+    if (!address) return "";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
   return (
     <div className="bg-soft min-h-screen pt-24 pb-12 bg-pattern">
@@ -225,7 +352,10 @@ export default function CreateGiftPage() {
               <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                 {/* Recipient Address */}
                 <div className="space-y-2">
-                  <Label htmlFor="recipient" className="text-primary font-medium-modern">
+                  <Label
+                    htmlFor="recipient"
+                    className="text-primary font-medium-modern"
+                  >
                     Recipient Wallet Address
                   </Label>
                   <div className="relative">
@@ -234,7 +364,9 @@ export default function CreateGiftPage() {
                       type="text"
                       placeholder="0x1234...abcd"
                       value={formData.recipient}
-                      onChange={(e) => handleInputChange("recipient", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("recipient", e.target.value)
+                      }
                       className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all font-regular-modern pr-12"
                     />
                     <button
@@ -245,12 +377,13 @@ export default function CreateGiftPage() {
                       <QrCode className="w-5 h-5" />
                     </button>
                   </div>
-                  {formData.recipient && !isValidAddress(formData.recipient) && (
-                    <div className="flex items-center text-red-500 text-sm">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      Invalid Ethereum address
-                    </div>
-                  )}
+                  {formData.recipient &&
+                    !isValidAddress(formData.recipient) && (
+                      <div className="flex items-center text-red-500 text-sm">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        Invalid Ethereum address
+                      </div>
+                    )}
                   {formData.recipient && isValidAddress(formData.recipient) && (
                     <div className="flex items-center text-green-500 text-sm">
                       <CheckCircle className="w-4 h-4 mr-1" />
@@ -261,10 +394,18 @@ export default function CreateGiftPage() {
 
                 {/* Gift Amount */}
                 <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-primary font-medium-modern">
+                  <Label
+                    htmlFor="amount"
+                    className="text-primary font-medium-modern"
+                  >
                     Gift Amount (USDT)
                   </Label>
-                  <Select value={formData.amount} onValueChange={(value) => handleInputChange("amount", value)}>
+                  <Select
+                    value={formData.amount}
+                    onValueChange={(value) =>
+                      handleInputChange("amount", value)
+                    }
+                  >
                     <SelectTrigger className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent font-regular-modern">
                       <SelectValue placeholder="Select amount" />
                     </SelectTrigger>
@@ -280,14 +421,19 @@ export default function CreateGiftPage() {
 
                 {/* Message */}
                 <div className="space-y-2">
-                  <Label htmlFor="message" className="text-primary font-medium-modern">
+                  <Label
+                    htmlFor="message"
+                    className="text-primary font-medium-modern"
+                  >
                     Personal Message (Optional)
                   </Label>
                   <Textarea
                     id="message"
                     placeholder="Happy Birthday! Enjoy your coffee ☕"
                     value={formData.message}
-                    onChange={(e) => handleInputChange("message", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("message", e.target.value)
+                    }
                     maxLength={50}
                     className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none font-regular-modern"
                     rows={3}
@@ -301,7 +447,11 @@ export default function CreateGiftPage() {
                 <div className="text-sm font-regular-modern">
                   <div className="flex items-center justify-between">
                     <span className="text-secondary">Wallet Status:</span>
-                    <span className={authenticated ? "text-green-500" : "text-red-500"}>
+                    <span
+                      className={
+                        authenticated ? "text-green-500" : "text-red-500"
+                      }
+                    >
                       {authenticated ? "Connected" : "Not Connected"}
                     </span>
                   </div>
@@ -322,11 +472,16 @@ export default function CreateGiftPage() {
                   variant="floating"
                   size="lg"
                   className="w-full"
-                  disabled={loading || !authenticated || !formData.recipient || !formData.amount}
+                  disabled={
+                    loading ||
+                    !authenticated ||
+                    !formData.recipient ||
+                    !formData.amount
+                  }
                 >
                   <div className="flex items-center justify-center">
                     <Send className="w-5 h-5 mr-2" />
-                    {loading ? 'Sending Gift...' : 'Send Gift'}
+                    {loading ? "Sending Gift..." : "Send Gift"}
                   </div>
                 </InteractiveButton>
 
@@ -342,27 +497,37 @@ export default function CreateGiftPage() {
           {/* Preview Section */}
           <div className={isLoaded ? "fade-in-delay-2" : ""}>
             <div>
-              <h3 className="text-2xl font-bold-modern text-primary mb-6 text-center">Gift Preview</h3>
+              <h3 className="text-2xl font-bold-modern text-primary mb-6 text-center">
+                Gift Preview
+              </h3>
 
               <div className="card-modern glow-cranberry">
                 <div className="text-center">
                   <Gift className="w-16 h-16 mx-auto mb-4 text-accent" />
-                  <h4 className="text-xl font-semibold-modern text-primary mb-2">CRYPTO GIFT</h4>
+                  <h4 className="text-xl font-semibold-modern text-primary mb-2">
+                    CRYPTO GIFT
+                  </h4>
                   <div className="text-3xl font-bold-modern text-accent mb-4">
                     {formData.amount ? `$${formData.amount}` : "$0"} USDT
                   </div>
                   <div className="text-sm text-secondary mb-4 font-regular-modern">
-                    <strong>To:</strong> {formData.recipient ? shortenAddress(formData.recipient) : "0x1234...abcd"}
+                    <strong>To:</strong>{" "}
+                    {formData.recipient
+                      ? shortenAddress(formData.recipient)
+                      : "0x1234...abcd"}
                   </div>
                   <div className="text-sm text-secondary font-regular-modern">
-                    <strong>Message:</strong> {formData.message || "Your personalized message here"}
+                    <strong>Message:</strong>{" "}
+                    {formData.message || "Your personalized message here"}
                   </div>
                 </div>
               </div>
 
               {/* Gift Details */}
               <div className="card-modern mt-8">
-                <h4 className="text-lg font-semibold-modern text-primary mb-4">Transaction Details</h4>
+                <h4 className="text-lg font-semibold-modern text-primary mb-4">
+                  Transaction Details
+                </h4>
                 <div className="space-y-3 text-sm font-regular-modern">
                   <div className="flex justify-between">
                     <span className="text-secondary">Network:</span>
@@ -401,7 +566,9 @@ export default function CreateGiftPage() {
               <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
                 <Gift className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold-modern text-primary mb-2">Gift Sent Successfully!</h3>
+              <h3 className="text-2xl font-bold-modern text-primary mb-2">
+                Gift Sent Successfully!
+              </h3>
               <p className="text-secondary mb-4 font-regular-modern">
                 Your crypto gift has been successfully sent to the recipient.
               </p>
@@ -426,5 +593,5 @@ export default function CreateGiftPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
