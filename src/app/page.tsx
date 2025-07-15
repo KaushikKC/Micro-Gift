@@ -11,7 +11,7 @@ import clsx from "clsx"
 
 export default function HomePage() {
   const [isLoaded, setIsLoaded] = useState(false)
-
+ 
   useEffect(() => {
     setIsLoaded(true)
   }, [])
@@ -66,6 +66,10 @@ export default function HomePage() {
           </div>
         </div>
       </section> */}
+
+
+
+
 
       {/* Hero Section */}
       <section className="section-modern pt-32">
@@ -140,7 +144,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="section-modern bg-blob">
+      <section className="section-modern ">
         <div className="container-modern">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold-modern text-primary mb-4">

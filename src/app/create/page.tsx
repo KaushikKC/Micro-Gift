@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import { QrCode, Send, Gift, CheckCircle, AlertCircle } from "lucide-react";
+import { QrCode, Send, Gift, CheckCircle, AlertCircle, Plus, Trash, Users, User, Sparkles, Zap } from "lucide-react";
 import { InteractiveButton } from "@/components/interactive-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,7 @@ export default function CreateGiftPage() {
   const [batchData, setBatchData] = useState([
     { recipient: "", amount: "", message: "" },
   ]);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const { toast } = useToast();
   const { authenticated, user } = usePrivy();
@@ -68,6 +70,13 @@ export default function CreateGiftPage() {
     // Load contract balance on component mount
     loadContractBalance();
   }, []);
+
+  useEffect(() => {
+    if (showSuccess) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+    }
+  }, [showSuccess]);
 
   // Load contract USDT balance
   const loadContractBalance = async () => {
@@ -500,6 +509,13 @@ export default function CreateGiftPage() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  // Helper to sum batch amounts
+  const getBatchTotal = () =>
+    batchData.reduce((sum, entry) => {
+      const amt = Number(entry.amount);
+      return sum + (isNaN(amt) ? 0 : amt);
+    }, 0);
+
   return (
     <div className="bg-soft min-h-screen pt-24 pb-12 bg-pattern">
       <div className="container-modern">
@@ -522,66 +538,134 @@ export default function CreateGiftPage() {
           <div className={isLoaded ? "fade-in-delay-1" : ""}>
             <div className="card-modern">
               <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                <div className="mb-4">
-                  <button
-                    type="button"
-                    className="btn-modern"
-                    onClick={() => setBatchMode((m) => !m)}
-                  >
-                    {batchMode
-                      ? "Switch to Single Send"
-                      : "Switch to Batch Send"}
-                  </button>
+                <div className="mb-4 flex justify-center">
+                  <div className="inline-flex rounded-full bg-surface border border-soft overflow-hidden shadow-sm">
+                    <button
+                      type="button"
+                      className={`flex items-center gap-2 px-6 py-2 font-medium-modern transition-colors focus:outline-none ${
+                        !batchMode
+                          ? "bg-accent text-white shadow"
+                          : "text-secondary hover:bg-accent/10"
+                      }`}
+                      onClick={() => setBatchMode(false)}
+                      aria-pressed={!batchMode}
+                    >
+                      <User className="w-4 h-4" /> Single Gift
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex items-center gap-2 px-6 py-2 font-medium-modern transition-colors focus:outline-none border-l border-soft ${
+                        batchMode
+                          ? "bg-accent text-white shadow"
+                          : "text-secondary hover:bg-accent/10"
+                      }`}
+                      onClick={() => setBatchMode(true)}
+                      aria-pressed={batchMode}
+                    >
+                      <Users className="w-4 h-4" /> Batch Gift
+                    </button>
+                  </div>
                 </div>
                 {batchMode ? (
                   <div>
                     {batchData.map((entry, idx) => (
-                      <div key={idx} className="flex gap-2 mb-2">
-                        <Input
-                          placeholder="Recipient"
-                          value={entry.recipient}
-                          onChange={(e) =>
-                            handleBatchInputChange(
-                              idx,
-                              "recipient",
-                              e.target.value
-                            )
-                          }
-                        />
-                        <Input
-                          placeholder="Amount"
-                          value={entry.amount}
-                          onChange={(e) =>
-                            handleBatchInputChange(
-                              idx,
-                              "amount",
-                              e.target.value
-                            )
-                          }
-                        />
-                        <Input
-                          placeholder="Message"
-                          value={entry.message}
-                          onChange={(e) =>
-                            handleBatchInputChange(
-                              idx,
-                              "message",
-                              e.target.value
-                            )
-                          }
-                        />
+                      <div
+                        key={idx}
+                        className="flex flex-col gap-4 mb-4 p-4 rounded-xl bg-surface/70 border border-soft shadow-sm relative"
+                      >
+                        {/* Recipient Label & Input */}
+                        <div className="space-y-2">
+                          <Label htmlFor={`batch-recipient-${idx}`} className="text-primary font-medium-modern">
+                            Recipient Wallet Address
+                          </Label>
+                          <Input
+                            id={`batch-recipient-${idx}`}
+                            placeholder="0x1234...abcd"
+                            value={entry.recipient}
+                            onChange={(e) => handleBatchInputChange(idx, "recipient", e.target.value)}
+                            className="flex-1 min-w-0 px-4 py-3 border border-soft rounded-lg bg-white/60 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 font-regular-modern"
+                          />
+                        </div>
+                        {/* Amount Label & Select */}
+                        <div className="space-y-2">
+                          <Label htmlFor={`batch-amount-${idx}`} className="text-primary font-medium-modern">
+                            Gift Amount (USDT)
+                          </Label>
+                          <Select
+                            value={entry.amount}
+                            onValueChange={(value) => handleBatchInputChange(idx, "amount", value)}
+                          >
+                            <SelectTrigger id={`batch-amount-${idx}`} className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent font-regular-modern">
+                          <SelectValue placeholder="Select amount" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border border-soft rounded-xl">
+                          <SelectItem value="1">$1 USDT</SelectItem>
+                          <SelectItem value="2">$2 USDT</SelectItem>
+                          <SelectItem value="3">$3 USDT</SelectItem>
+                          <SelectItem value="4">$4 USDT</SelectItem>
+                          <SelectItem value="5">$5 USDT</SelectItem>
+                        </SelectContent>
+                          </Select>
+                        </div>
+                        {/* Message Label & Textarea */}
+                        <div className="space-y-2">
+                          <Label htmlFor={`batch-message-${idx}`} className="text-primary font-medium-modern">
+                            Personal Message (Optional)
+                          </Label>
+                          <Textarea
+                            id={`batch-message-${idx}`}
+                            placeholder="Happy Birthday! Enjoy your coffee ☕"
+                            value={entry.message}
+                            onChange={(e) => handleBatchInputChange(idx, "message", e.target.value)}
+                            maxLength={50}
+                            rows={3}
+                            className="flex-1 min-w-0 px-4 py-3 border border-soft rounded-lg bg-white/60 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 font-regular-modern resize-none"
+                          />
+                          <div className="text-right text-sm text-secondary font-regular-modern">
+                            {entry.message.length}/50
+                          </div>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeBatchRow(idx)}
                           disabled={batchData.length === 1}
+                          className="absolute top-2 right-2 text-secondary hover:text-red-500 transition-colors p-1 rounded-full focus:outline-none disabled:opacity-40"
+                          title="Remove recipient"
                         >
-                          Remove
+                          <Trash className="w-5 h-5" />
                         </button>
                       </div>
                     ))}
-                    <button type="button" onClick={addBatchRow}>
-                      Add Recipient
-                    </button>
+                    <div className="flex justify-end mb-4">
+                      <button
+                        type="button"
+                        onClick={addBatchRow}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-white font-medium-modern shadow hover:bg-accent-dark transition-colors focus:outline-none"
+                      >
+                        <Plus className="w-4 h-4" /> Add Recipient
+                      </button>
+                    </div>
+                    {/* Connection Status */}
+                    <div className="text-sm font-regular-modern mb-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-secondary">Wallet Status:</span>
+                        <span
+                          className={
+                            authenticated ? "text-green-500" : "text-red-500"
+                          }
+                        >
+                          {authenticated ? "Connected" : "Not Connected"}
+                        </span>
+                      </div>
+                      {authenticated && user?.wallet?.address && (
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-secondary">Your Address:</span>
+                          <span className="text-primary font-mono text-xs">
+                            {shortenAddress(user.wallet.address)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <InteractiveButton
                       type="button"
                       onClick={handleSendBatch}
@@ -759,21 +843,46 @@ export default function CreateGiftPage() {
                     CRYPTO GIFT
                   </h4>
                   <div className="text-3xl font-bold-modern text-accent mb-4">
-                    {formData.amount ? `$${formData.amount}` : "$0"} USDT
+                    {batchMode
+                      ? `$${getBatchTotal()}`
+                      : formData.amount
+                      ? `$${formData.amount}`
+                      : "$0"} USDT
                   </div>
+                  {/* Recipients */}
                   <div className="text-sm text-secondary mb-4 font-regular-modern">
                     <strong>To:</strong>{" "}
-                    {formData.recipient
+                    {batchMode
+                      ? (
+                          <ul className="inline-block text-left ml-1">
+                            {batchData.map((entry, idx) => (
+                              <li key={idx} className="flex items-center gap-1">
+                                <span className="font-mono">{shortenAddress(entry.recipient) || "0x1234...abcd"}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      : formData.recipient
                       ? shortenAddress(formData.recipient)
                       : "0x1234...abcd"}
                   </div>
+                  {/* Messages */}
                   <div className="text-sm text-secondary font-regular-modern">
-                    <strong>Message:</strong>{" "}
-                    {formData.message || "Your personalized message here"}
+                    <strong>Message{batchMode && batchData.length > 1 ? 's' : ''}:</strong>{" "}
+                    {batchMode
+                      ? (
+                          <ul className="inline-block text-left ml-1">
+                            {batchData.map((entry, idx) => (
+                              <li key={idx}>
+                                {entry.message || <span className="italic text-muted">(No message)</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      : formData.message || "Your personalized message here"}
                   </div>
                 </div>
               </div>
-
               {/* Gift Details */}
               <div className="card-modern mt-8">
                 <h4 className="text-lg font-semibold-modern text-primary mb-4">
@@ -801,7 +910,9 @@ export default function CreateGiftPage() {
                   <div className="flex justify-between font-semibold-modern border-t pt-2">
                     <span className="text-secondary">Total Cost:</span>
                     <span className="text-primary">
-                      ${formData.amount || "0"} + Gas
+                      {batchMode
+                        ? `$${getBatchTotal()}`
+                        : `$${formData.amount || "0"}`} + Gas
                     </span>
                   </div>
                 </div>
@@ -813,29 +924,87 @@ export default function CreateGiftPage() {
         {/* Success Message */}
         {showSuccess && (
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="card-modern glow-mint text-center max-w-md mx-4 scale-in">
-              <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
+            {/* Enhanced Confetti Effect: More, only Y direction, no flutter */}
+            {showConfetti && (
+              <div className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: 120 }).map((_, i) => {
+                  const confettiColors = [
+                    "bg-red-400", "bg-yellow-300", "bg-green-400", "bg-blue-400",
+                    "bg-pink-400", "bg-purple-400", "bg-orange-400", "bg-cyan-400"
+                  ];
+                  // Random rectangle size
+                  const width = 2 + Math.random() * 2; // 2-4
+                  const height = 1 + Math.random() * 2; // 1-3
+                  // Random rotation
+                  const rotate = Math.floor(Math.random() * 360);
+                  // Random X start
+                  const xStart = Math.random() * 100;
+                  // Faster fall: 0.8s to 1.5s
+                  const duration = 0.8 + Math.random() * 0.7;
+                  // Random delay, but confetti is invisible until it starts falling
+                  const delay = Math.random() * 0.7;
+                  // Keyframes: invisible until fall starts, then fade in and fall
+                  const keyframes = `@keyframes confetti-fall-y-${i} {\n                    0% { opacity: 0; transform: translate(${xStart}vw, 0vh) rotate(${rotate}deg); }\n                    1% { opacity: 1; }\n                    100% { opacity: 1; transform: translate(${xStart}vw, 100vh) rotate(${rotate + 360}deg); }\n                  }`;
+                  if (typeof window !== "undefined") {
+                    const styleId = `confetti-style-y-${i}`;
+                    if (!document.getElementById(styleId)) {
+                      const style = document.createElement("style");
+                      style.id = styleId;
+                      style.innerHTML = keyframes;
+                      document.head.appendChild(style);
+                    }
+                  }
+                  const animationName = `confetti-fall-y-${i}`;
+                  return (
+                    <div
+                      key={i}
+                      className={`absolute ${confettiColors[i % confettiColors.length]} pointer-events-none`}
+                      style={{
+                        width: `${width * 8}px`,
+                        height: `${height * 8}px`,
+                        borderRadius: `${Math.random() > 0.7 ? '50%' : '4px'}`,
+                        left: 0,
+                        top: 0,
+                        opacity: 0,
+                        animation: `${animationName} ${duration}s linear ${delay}s 1 forwards`,
+                        zIndex: 100,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            <div className="card-modern glow-mint text-center max-w-md mx-4 scale-in relative overflow-hidden">
+              {/* Floating Sparkles */}
+              <div className="absolute top-4 right-4 animate-sparkle">
+                <Sparkles className="w-6 h-6 text-accent/20" />
+              </div>
+              <div className="absolute bottom-4 left-4 animate-sparkle" style={{ animationDelay: "0.5s" }}>
+                <Zap className="w-4 h-4 text-accent/20" />
+              </div>
+              <div className="absolute -top-2 -left-2 w-4 h-4 bg-accent/10 star animate-float" />
+              <div className="absolute -bottom-2 -right-2 w-3 h-3 bg-accent/10 diamond animate-float" style={{ animationDelay: "1s" }} />
+              <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4 animate-scale-in">
                 <Gift className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold-modern text-primary mb-2">
-                Gift Sent Successfully!
-              </h3>
-              <p className="text-secondary mb-4 font-regular-modern">
+              <h3 className="text-2xl font-bold-modern text-primary mb-2 animate-slide-up">Gift Sent Successfully!</h3>
+              <p className="text-secondary mb-4 font-regular-modern animate-slide-up" style={{ animationDelay: "0.2s" }}>
                 Your crypto gift has been successfully sent to the recipient.
               </p>
               {txHash && (
-                <div className="text-xs text-secondary font-mono font-regular-modern mb-2">
+                <div className="text-xs text-secondary font-mono font-regular-modern mb-2 animate-slide-up" style={{ animationDelay: "0.3s" }}>
                   TX: {shortenAddress(txHash)}
                 </div>
               )}
               {voucherId && (
-                <div className="text-xs text-secondary font-mono font-regular-modern">
+                <div className="text-xs text-secondary font-mono font-regular-modern animate-slide-up" style={{ animationDelay: "0.4s" }}>
                   Voucher ID: {shortenAddress(voucherId)}
                 </div>
               )}
               <button
                 onClick={() => setShowSuccess(false)}
-                className="mt-4 text-accent hover:text-accent-dark transition-colors"
+                className="mt-4 text-accent hover:text-accent-dark transition-colors animate-slide-up"
+                style={{ animationDelay: "0.5s" }}
               >
                 Close
               </button>

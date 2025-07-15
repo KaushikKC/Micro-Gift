@@ -13,7 +13,7 @@ import {
 import { InteractiveButton } from "@/components/interactive-button";
 import { usePrivy } from "@privy-io/react-auth";
 import { getGiftVoucherContractWithSigner } from "@/lib/web3";
-import { ethers } from "ethers";
+// import { ethers } from "ethers";
 
 interface GiftHistory {
   id: string;
@@ -35,6 +35,8 @@ export default function HistoryPage() {
   );
   const [history, setHistory] = useState<GiftHistory[]>([]);
   const { authenticated, user } = usePrivy();
+  // Confetti state
+  const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -47,7 +49,7 @@ export default function HistoryPage() {
         const res = await fetch(`/api/history?address=${user.wallet.address}`);
         const data = await res.json();
         if (data.history) setHistory(data.history);
-      } catch (err) {
+      } catch {
         // fallback: do nothing
       }
     };
@@ -59,7 +61,7 @@ export default function HistoryPage() {
     return item.type === activeTab;
   });
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string): React.ReactNode => {
     switch (status) {
       case "completed":
         return <CheckCircle className="w-5 h-5 text-mint" />;
@@ -86,15 +88,15 @@ export default function HistoryPage() {
   };
 
   const handleClaim = async (voucherId: string) => {
-    if (!authenticated || !user?.wallet?.address) return;
+    if (!authenticated || !user?.wallet || !user.wallet.address) return;
     try {
-      let provider = (user.wallet as any).provider;
+      let provider = (user.wallet as unknown as { provider?: unknown }).provider;
       if (
         !provider &&
         typeof window !== "undefined" &&
-        (window as any).ethereum
+        (window as unknown as { ethereum?: unknown }).ethereum
       ) {
-        provider = (window as any).ethereum;
+        provider = (window as unknown as { ethereum?: unknown }).ethereum;
       }
       if (!provider) return;
       const contract = await getGiftVoucherContractWithSigner(provider);
@@ -106,11 +108,18 @@ export default function HistoryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voucherId, status: "completed", claimed: true }),
       });
-      // Refresh history
-      const res = await fetch(`/api/history?address=${user.wallet.address}`);
-      const data = await res.json();
-      if (data.history) setHistory(data.history);
-    } catch (err) {
+      // Show confetti!
+      setShowConfetti(true);
+      setTimeout(async () => {
+        setShowConfetti(false);
+        // Refresh history AFTER confetti
+        if (user?.wallet?.address) {
+          const res = await fetch(`/api/history?address=${user.wallet.address}`);
+          const data = await res.json();
+          if (data.history) setHistory(data.history);
+        }
+      }, 1500);
+    } catch {
       // handle error
     }
   };
@@ -118,6 +127,57 @@ export default function HistoryPage() {
   return (
     <div className="bg-soft min-h-screen pt-24 pb-12 bg-pattern">
       <div className="container-modern">
+        {/* Confetti overlay on claim */}
+        {showConfetti && (
+          <div className="fixed inset-0 z-50 pointer-events-none">
+            {Array.from({ length: 120 }).map((_, i) => {
+              const confettiColors = [
+                "bg-red-400", "bg-yellow-300", "bg-green-400", "bg-blue-400",
+                "bg-pink-400", "bg-purple-400", "bg-orange-400", "bg-cyan-400"
+              ];
+              const width = 2 + Math.random() * 2; // 2-4
+              const height = 1 + Math.random() * 2; // 1-3
+              const rotate = Math.floor(Math.random() * 360);
+              const xStart = Math.random() * 100;
+              // Faster fall: 0.8s to 1.5s
+              const duration = 0.8 + Math.random() * 0.7;
+              // Random delay, but confetti is invisible until it starts falling
+              const delay = Math.random() * 0.7;
+              // Keyframes: invisible until fall starts, then fade in and fall
+              const keyframes = `@keyframes confetti-fall-y-hist-${i} {
+                0% { opacity: 0; transform: translate(${xStart}vw, 0vh) rotate(${rotate}deg); }
+                1% { opacity: 1; }
+                100% { opacity: 1; transform: translate(${xStart}vw, 100vh) rotate(${rotate + 360}deg); }
+              }`;
+              if (typeof window !== "undefined") {
+                const styleId = `confetti-style-y-hist-${i}`;
+                if (!document.getElementById(styleId)) {
+                  const style = document.createElement("style");
+                  style.id = styleId;
+                  style.innerHTML = keyframes;
+                  document.head.appendChild(style);
+                }
+              }
+              const animationName = `confetti-fall-y-hist-${i}`;
+              return (
+                <div
+                  key={i}
+                  className={`absolute ${confettiColors[i % confettiColors.length]} pointer-events-none`}
+                  style={{
+                    width: `${width * 8}px`,
+                    height: `${height * 8}px`,
+                    borderRadius: `${Math.random() > 0.7 ? '50%' : '4px'}`,
+                    left: 0,
+                    top: 0,
+                    opacity: 0,
+                    animation: `${animationName} ${duration}s linear ${delay}s 1 forwards`,
+                    zIndex: 100,
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
         <div className="text-center mb-12">
           <div className={isLoaded ? "fade-in" : ""}>
             <h1 className="text-4xl font-bold-modern text-primary mb-4">
@@ -139,7 +199,7 @@ export default function HistoryPage() {
             ].map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key as any)}
+                onClick={() => setActiveTab(tab.key as "all" | "sent" | "received")}
                 className={`px-6 py-3 rounded-full font-medium-modern transition-all ${
                   activeTab === tab.key
                     ? "bg-accent text-white"
@@ -243,7 +303,7 @@ export default function HistoryPage() {
                   </div>
 
                   {/* Transaction hash */}
-                  <div className="mt-4 pt-4 border-t border-soft">
+                  <div className="mt-4 pt-4 ">
                     <div className="flex items-center justify-between text-xs font-regular-modern">
                       <span className="text-secondary">Transaction:</span>
                       <span className="font-mono text-secondary">
