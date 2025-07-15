@@ -1,13 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MongoClient, ObjectId } from "mongodb";
 
-// In-memory store for demo purposes (replace with DB in production)
-let giftHistory: any[] = [];
+const uri =
+  process.env.MONGODB_URI ||
+  "mongodb+srv://madhuvarsha:madhu1234@cluster0.jqjbs.mongodb.net/";
+const dbName = "morph-gift";
+let cachedClient: MongoClient | null = null;
+
+async function getDb() {
+  if (!cachedClient) {
+    cachedClient = new MongoClient(uri);
+    await cachedClient.connect();
+  }
+  return cachedClient.db(dbName);
+}
 
 // POST: Store a new gift transaction or update an existing one by voucherId
 export async function POST(req: NextRequest) {
   const data = await req.json();
+  const db = await getDb();
+  const collection = db.collection("giftHistory");
 
-  // If only voucherId and update fields are provided, update the record
+  // Only update if voucherId and update fields are present, but NOT all new record fields
   if (
     data.voucherId &&
     (data.claimed !== undefined || data.status) &&
@@ -16,11 +30,11 @@ export async function POST(req: NextRequest) {
     !data.amount &&
     !data.txHash
   ) {
-    const idx = giftHistory.findIndex(
-      (item) => item.voucherId === data.voucherId
+    const result = await collection.updateOne(
+      { voucherId: data.voucherId },
+      { $set: { ...data } }
     );
-    if (idx !== -1) {
-      giftHistory[idx] = { ...giftHistory[idx], ...data };
+    if (result.matchedCount > 0) {
       return NextResponse.json({ success: true, updated: true });
     } else {
       return NextResponse.json({ error: "Voucher not found" }, { status: 404 });
@@ -40,22 +54,28 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  giftHistory.push({ ...data });
+  await collection.insertOne({ ...data });
   return NextResponse.json({ success: true });
 }
 
 export async function GET(req: NextRequest) {
+  const db = await getDb();
+  const collection = db.collection("giftHistory");
   const { searchParams } = new URL(req.url);
   const address = searchParams.get("address");
   if (!address) {
     return NextResponse.json({ error: "Address required" }, { status: 400 });
   }
   // Classify as sent or received
-  const history = giftHistory
-    .filter((item) => item.sender === address || item.recipient === address)
-    .map((item) => ({
-      ...item,
-      type: item.sender === address ? "sent" : "received",
-    }));
-  return NextResponse.json({ history });
+  const history = await collection
+    .find({
+      $or: [{ sender: address }, { recipient: address }],
+    })
+    .toArray();
+  const result = history.map((item: any) => ({
+    ...item,
+    type: item.sender === address ? "sent" : "received",
+    id: item._id?.toString() || item.voucherId,
+  }));
+  return NextResponse.json({ history: result });
 }
