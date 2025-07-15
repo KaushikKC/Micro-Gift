@@ -55,6 +55,10 @@ export default function CreateGiftPage() {
   const [voucherId, setVoucherId] = useState<string>("");
   const [contractBalance, setContractBalance] = useState<string>("0");
   const [gasEstimate, setGasEstimate] = useState<string>("0.01");
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchData, setBatchData] = useState([
+    { recipient: "", amount: "", message: "" },
+  ]);
 
   const { toast } = useToast();
   const { authenticated, user } = usePrivy();
@@ -319,6 +323,174 @@ export default function CreateGiftPage() {
     }
   };
 
+  const handleBatchInputChange = (
+    idx: number,
+    field: string,
+    value: string
+  ) => {
+    setBatchData((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
+    );
+  };
+  const addBatchRow = () => {
+    setBatchData((prev) => [
+      ...prev,
+      { recipient: "", amount: "", message: "" },
+    ]);
+  };
+  const removeBatchRow = (idx: number) => {
+    setBatchData((prev) => prev.filter((_, i) => i !== idx));
+  };
+  const handleSendBatch = async () => {
+    if (!authenticated || !user?.wallet?.address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to send gifts.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Validate all inputs
+    for (const entry of batchData) {
+      if (!isValidAddress(entry.recipient)) {
+        toast({
+          title: "Invalid address",
+          description:
+            "Please enter a valid Ethereum address for all recipients.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const amountNum = Number(entry.amount);
+      if (isNaN(amountNum) || amountNum < 1 || amountNum > 5) {
+        toast({
+          title: "Invalid amount",
+          description:
+            "Amount must be between 1 and 5 USDT for all recipients.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (entry.message.length > 50) {
+        toast({
+          title: "Message too long",
+          description:
+            "Message must be 50 characters or less for all recipients.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    setLoading(true);
+    try {
+      let provider = (user.wallet as any).provider;
+      if (
+        !provider &&
+        typeof window !== "undefined" &&
+        (window as any).ethereum
+      ) {
+        provider = (window as any).ethereum;
+      }
+      if (!provider) {
+        toast({
+          title: "Wallet not connected",
+          description: "Could not access wallet provider.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      const recipients = batchData.map((e) => e.recipient);
+      const amounts = batchData.map((e) => Number(e.amount) * 1e6);
+      const messages = batchData.map((e) => e.message);
+      const totalAmount = amounts.reduce((a, b) => a + b, 0);
+      // Check allowance
+      const usdtContract = new ethers.Contract(
+        MOCK_USDT_ADDRESS,
+        ERC20_ABI,
+        signer
+      );
+      const allowance = await usdtContract.allowance(
+        user.wallet.address,
+        GIFT_VOUCHER_ADDRESS
+      );
+      if (allowance < totalAmount) {
+        toast({
+          title: "Approval Needed",
+          description: "Approving USDT for gifting...",
+          variant: "default",
+        });
+        const approveTx = await usdtContract.approve(
+          GIFT_VOUCHER_ADDRESS,
+          totalAmount
+        );
+        await approveTx.wait();
+        toast({
+          title: "USDT Approved",
+          description: "USDT approved for gifting. Sending batch gift now...",
+        });
+      }
+      // Send batch
+      const contract = await getGiftVoucherContractWithSigner(provider);
+      const tx = await contract.batchCreateVouchers(
+        recipients,
+        amounts,
+        messages
+      );
+      const receipt = await tx.wait();
+      // Extract voucherIds from BatchVouchersCreated event
+      let voucherIds: string[] = [];
+      if (receipt && receipt.logs) {
+        for (const log of receipt.logs) {
+          try {
+            const parsed = contract.interface.parseLog(log);
+            if (parsed && parsed.name === "BatchVouchersCreated") {
+              voucherIds = parsed.args.voucherIds;
+              break;
+            }
+          } catch (e) {
+            /* not this log */
+          }
+        }
+      }
+      // POST each voucher to backend
+      for (let i = 0; i < voucherIds.length; i++) {
+        await fetch("/api/history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender: user.wallet.address,
+            recipient: recipients[i],
+            amount: Number(amounts[i]) / 1e6,
+            message: messages[i],
+            txHash: tx.hash,
+            voucherId: voucherIds[i],
+            timestamp: new Date().toISOString(),
+            status: "completed",
+          }),
+        });
+      }
+      setShowSuccess(true);
+      toast({
+        title: "Batch Gift Sent!",
+        description: "Your crypto gifts have been sent successfully.",
+      });
+      setBatchData([{ recipient: "", amount: "", message: "" }]);
+      await loadContractBalance();
+      setTimeout(() => setShowSuccess(false), 5000);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Batch transaction failed.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -350,145 +522,224 @@ export default function CreateGiftPage() {
           <div className={isLoaded ? "fade-in-delay-1" : ""}>
             <div className="card-modern">
               <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                {/* Recipient Address */}
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="recipient"
-                    className="text-primary font-medium-modern"
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    className="btn-modern"
+                    onClick={() => setBatchMode((m) => !m)}
                   >
-                    Recipient Wallet Address
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="recipient"
-                      type="text"
-                      placeholder="0x1234...abcd"
-                      value={formData.recipient}
-                      onChange={(e) =>
-                        handleInputChange("recipient", e.target.value)
-                      }
-                      className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all font-regular-modern pr-12"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary hover:text-accent transition-colors"
-                      title="Scan QR Code"
-                    >
-                      <QrCode className="w-5 h-5" />
+                    {batchMode
+                      ? "Switch to Single Send"
+                      : "Switch to Batch Send"}
+                  </button>
+                </div>
+                {batchMode ? (
+                  <div>
+                    {batchData.map((entry, idx) => (
+                      <div key={idx} className="flex gap-2 mb-2">
+                        <Input
+                          placeholder="Recipient"
+                          value={entry.recipient}
+                          onChange={(e) =>
+                            handleBatchInputChange(
+                              idx,
+                              "recipient",
+                              e.target.value
+                            )
+                          }
+                        />
+                        <Input
+                          placeholder="Amount"
+                          value={entry.amount}
+                          onChange={(e) =>
+                            handleBatchInputChange(
+                              idx,
+                              "amount",
+                              e.target.value
+                            )
+                          }
+                        />
+                        <Input
+                          placeholder="Message"
+                          value={entry.message}
+                          onChange={(e) =>
+                            handleBatchInputChange(
+                              idx,
+                              "message",
+                              e.target.value
+                            )
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeBatchRow(idx)}
+                          disabled={batchData.length === 1}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={addBatchRow}>
+                      Add Recipient
                     </button>
+                    <InteractiveButton
+                      type="button"
+                      onClick={handleSendBatch}
+                      variant="floating"
+                      size="lg"
+                      className="w-full"
+                      disabled={loading}
+                    >
+                      <div className="flex items-center justify-center">
+                        <Send className="w-5 h-5 mr-2" />
+                        {loading ? "Sending Batch..." : "Send Batch Gift"}
+                      </div>
+                    </InteractiveButton>
                   </div>
-                  {formData.recipient &&
-                    !isValidAddress(formData.recipient) && (
-                      <div className="flex items-center text-red-500 text-sm">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        Invalid Ethereum address
+                ) : (
+                  <>
+                    {/* Recipient Address */}
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="recipient"
+                        className="text-primary font-medium-modern"
+                      >
+                        Recipient Wallet Address
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="recipient"
+                          type="text"
+                          placeholder="0x1234...abcd"
+                          value={formData.recipient}
+                          onChange={(e) =>
+                            handleInputChange("recipient", e.target.value)
+                          }
+                          className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all font-regular-modern pr-12"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary hover:text-accent transition-colors"
+                          title="Scan QR Code"
+                        >
+                          <QrCode className="w-5 h-5" />
+                        </button>
+                      </div>
+                      {formData.recipient &&
+                        !isValidAddress(formData.recipient) && (
+                          <div className="flex items-center text-red-500 text-sm">
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                            Invalid Ethereum address
+                          </div>
+                        )}
+                      {formData.recipient &&
+                        isValidAddress(formData.recipient) && (
+                          <div className="flex items-center text-green-500 text-sm">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Valid address
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Gift Amount */}
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="amount"
+                        className="text-primary font-medium-modern"
+                      >
+                        Gift Amount (USDT)
+                      </Label>
+                      <Select
+                        value={formData.amount}
+                        onValueChange={(value) =>
+                          handleInputChange("amount", value)
+                        }
+                      >
+                        <SelectTrigger className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent font-regular-modern">
+                          <SelectValue placeholder="Select amount" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border border-soft rounded-xl">
+                          <SelectItem value="1">$1 USDT</SelectItem>
+                          <SelectItem value="2">$2 USDT</SelectItem>
+                          <SelectItem value="3">$3 USDT</SelectItem>
+                          <SelectItem value="4">$4 USDT</SelectItem>
+                          <SelectItem value="5">$5 USDT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Message */}
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="message"
+                        className="text-primary font-medium-modern"
+                      >
+                        Personal Message (Optional)
+                      </Label>
+                      <Textarea
+                        id="message"
+                        placeholder="Happy Birthday! Enjoy your coffee ☕"
+                        value={formData.message}
+                        onChange={(e) =>
+                          handleInputChange("message", e.target.value)
+                        }
+                        maxLength={50}
+                        className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none font-regular-modern"
+                        rows={3}
+                      />
+                      <div className="text-right text-sm text-secondary font-regular-modern">
+                        {formData.message.length}/50
+                      </div>
+                    </div>
+
+                    {/* Connection Status */}
+                    <div className="text-sm font-regular-modern">
+                      <div className="flex items-center justify-between">
+                        <span className="text-secondary">Wallet Status:</span>
+                        <span
+                          className={
+                            authenticated ? "text-green-500" : "text-red-500"
+                          }
+                        >
+                          {authenticated ? "Connected" : "Not Connected"}
+                        </span>
+                      </div>
+                      {authenticated && user?.wallet?.address && (
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-secondary">Your Address:</span>
+                          <span className="text-primary font-mono text-xs">
+                            {shortenAddress(user.wallet.address)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Submit Button */}
+                    <InteractiveButton
+                      type="button"
+                      onClick={handleSendGift}
+                      variant="floating"
+                      size="lg"
+                      className="w-full"
+                      disabled={
+                        loading ||
+                        !authenticated ||
+                        !formData.recipient ||
+                        !formData.amount
+                      }
+                    >
+                      <div className="flex items-center justify-center">
+                        <Send className="w-5 h-5 mr-2" />
+                        {loading ? "Sending Gift..." : "Send Gift"}
+                      </div>
+                    </InteractiveButton>
+
+                    {!authenticated && (
+                      <div className="text-center text-sm text-secondary font-regular-modern">
+                        Please connect your wallet to send gifts
                       </div>
                     )}
-                  {formData.recipient && isValidAddress(formData.recipient) && (
-                    <div className="flex items-center text-green-500 text-sm">
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      Valid address
-                    </div>
-                  )}
-                </div>
-
-                {/* Gift Amount */}
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="amount"
-                    className="text-primary font-medium-modern"
-                  >
-                    Gift Amount (USDT)
-                  </Label>
-                  <Select
-                    value={formData.amount}
-                    onValueChange={(value) =>
-                      handleInputChange("amount", value)
-                    }
-                  >
-                    <SelectTrigger className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent font-regular-modern">
-                      <SelectValue placeholder="Select amount" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-surface border border-soft rounded-xl">
-                      <SelectItem value="1">$1 USDT</SelectItem>
-                      <SelectItem value="2">$2 USDT</SelectItem>
-                      <SelectItem value="3">$3 USDT</SelectItem>
-                      <SelectItem value="4">$4 USDT</SelectItem>
-                      <SelectItem value="5">$5 USDT</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Message */}
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="message"
-                    className="text-primary font-medium-modern"
-                  >
-                    Personal Message (Optional)
-                  </Label>
-                  <Textarea
-                    id="message"
-                    placeholder="Happy Birthday! Enjoy your coffee ☕"
-                    value={formData.message}
-                    onChange={(e) =>
-                      handleInputChange("message", e.target.value)
-                    }
-                    maxLength={50}
-                    className="w-full px-4 py-3 border border-soft rounded-xl bg-surface/50 backdrop-blur-sm focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none font-regular-modern"
-                    rows={3}
-                  />
-                  <div className="text-right text-sm text-secondary font-regular-modern">
-                    {formData.message.length}/50
-                  </div>
-                </div>
-
-                {/* Connection Status */}
-                <div className="text-sm font-regular-modern">
-                  <div className="flex items-center justify-between">
-                    <span className="text-secondary">Wallet Status:</span>
-                    <span
-                      className={
-                        authenticated ? "text-green-500" : "text-red-500"
-                      }
-                    >
-                      {authenticated ? "Connected" : "Not Connected"}
-                    </span>
-                  </div>
-                  {authenticated && user?.wallet?.address && (
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-secondary">Your Address:</span>
-                      <span className="text-primary font-mono text-xs">
-                        {shortenAddress(user.wallet.address)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Submit Button */}
-                <InteractiveButton
-                  type="button"
-                  onClick={handleSendGift}
-                  variant="floating"
-                  size="lg"
-                  className="w-full"
-                  disabled={
-                    loading ||
-                    !authenticated ||
-                    !formData.recipient ||
-                    !formData.amount
-                  }
-                >
-                  <div className="flex items-center justify-center">
-                    <Send className="w-5 h-5 mr-2" />
-                    {loading ? "Sending Gift..." : "Send Gift"}
-                  </div>
-                </InteractiveButton>
-
-                {!authenticated && (
-                  <div className="text-center text-sm text-secondary font-regular-modern">
-                    Please connect your wallet to send gifts
-                  </div>
+                  </>
                 )}
               </form>
             </div>
