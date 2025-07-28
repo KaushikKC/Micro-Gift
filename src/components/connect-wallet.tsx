@@ -1,13 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { usePrivy } from '@privy-io/react-auth'
 import { InteractiveButton } from './interactive-button'
-import { Wallet, LogOut } from 'lucide-react'
+import { Wallet, LogOut, ChevronDown } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuSeparator } from './ui/dropdown-menu'
+import { Web3Status } from './web3-status'
+import { isOnMorphHolesky, switchToMorphHolesky, MOCK_USDT_ADDRESS } from '@/lib/web3'
+import { ethers } from 'ethers'
 
 export function ConnectWallet() {
   const [mounted, setMounted] = useState(false)
   const { login, logout, authenticated, user, ready } = usePrivy()
+  const [minting, setMinting] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -15,6 +21,41 @@ export function ConnectWallet() {
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
+  // Handler for minting 100 USDT
+  const handleMintUSDT = async () => {
+    if (!user?.wallet?.address) return
+    setMinting(true)
+    try {
+      // Type as 'any' because window.ethereum is injected by wallet providers
+      const ethereum = (window as any).ethereum as any
+      if (!ethereum) throw new Error('No wallet provider found')
+      // Check network
+      const onMorph = await isOnMorphHolesky(ethereum)
+      if (!onMorph) {
+        await switchToMorphHolesky(ethereum)
+      }
+      // Call mint/faucet (assume public mint(address,uint256) exists)
+      const provider = new ethers.BrowserProvider(ethereum)
+      const signer = await provider.getSigner()
+      const usdt = new ethers.Contract(
+        MOCK_USDT_ADDRESS,
+        ["function mint(address to, uint256 amount) public"],
+        signer
+      )
+      console.log("usdt",usdt)
+      // Mint 100 USDT (100 * 1e6)
+      const tx = await usdt.mint(user.wallet.address, 100 * 1e6)
+      console.log("wallet address",user.wallet.address)
+      await tx.wait()
+      alert('100 USDT minted to your wallet! Please refresh the balance in the dropdown.')
+    } catch (err: unknown) {
+      const error = err as Error
+      alert(error?.message || 'Mint failed')
+    } finally {
+      setMinting(false)
+    }
   }
 
   // Prevent hydration mismatch by not rendering until mounted
@@ -33,20 +74,37 @@ export function ConnectWallet() {
 
   if (authenticated && user?.wallet) {
     return (
-      <div className="flex items-center gap-3">
-        <div className="flex flex-col items-end">
-          <span className="text-sm text-secondary">
-            {formatAddress(user.wallet.address)}
-          </span>
-          <span className="text-xs text-muted">
-            Connected Wallet
-          </span>
-        </div>
-        
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-soft/60 hover:bg-accent/80 text-primary font-mono text-sm font-medium-modern transition-colors">
+              {formatAddress(user.wallet.address)}
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-80 p-0 rounded-xl border-soft shadow-xl bg-white/90">
+            <div className="p-4 pb-2">
+              <Web3Status />
+            </div>
+            <DropdownMenuSeparator />
+            <div className="p-4 pt-2 flex flex-col gap-2">
+              <InteractiveButton
+                variant="floating"
+                size="md"
+                className="w-full"
+                onClick={handleMintUSDT}
+                disabled={minting}
+              >
+                {minting ? 'Minting...' : 'Get 100 USDT'}
+              </InteractiveButton>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <InteractiveButton
           variant="outline"
           size="sm"
           onClick={logout}
+          aria-label="Logout"
         >
           <LogOut className="w-4 h-4" />
         </InteractiveButton>
@@ -65,7 +123,6 @@ export function ConnectWallet() {
         <Wallet className="w-4 h-4 mr-2" />
         Connect Wallet
         </div>
-        
       </InteractiveButton>
     </div>
   )

@@ -22,17 +22,11 @@ import {
   getGiftVoucherContract,
   GIFT_VOUCHER_ADDRESS,
   MOCK_USDT_ADDRESS,
+  ERC20_ABI
 } from "@/lib/web3";
 import { useToast } from "@/hooks/use-toast";
 import { ethers } from "ethers";
 
-// Standard ERC20 ABI for allowance/approve
-const ERC20_ABI = [
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-];
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface VoucherDetails {
   sender: string;
   recipient: string;
@@ -227,6 +221,7 @@ export default function CreateGiftPage() {
         user.wallet.address,
         GIFT_VOUCHER_ADDRESS
       );
+
       if (allowance < usdtAmount) {
         // Prompt approval
         toast({
@@ -246,6 +241,9 @@ export default function CreateGiftPage() {
       }
       // Now send the gift
       const contract = await getGiftVoucherContractWithSigner(provider);
+      console.log(  formData.recipient,
+        usdtAmount,
+        formData.message)
       const tx = await contract.createVoucher(
         formData.recipient,
         usdtAmount,

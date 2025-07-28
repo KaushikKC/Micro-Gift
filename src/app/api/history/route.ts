@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MongoClient, ObjectId } from "mongodb";
+import { MongoClient } from "mongodb";
 
 const uri =
   process.env.MONGODB_URI ||
@@ -72,6 +72,7 @@ export async function GET(req: NextRequest) {
       $or: [{ sender: address }, { recipient: address }],
     })
     .toArray();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = history.map((item: any) => ({
     ...item,
     type: item.sender === address ? "sent" : "received",
