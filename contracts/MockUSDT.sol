@@ -11,4 +11,9 @@ contract MockUSDT is ERC20 {
     function decimals() public view virtual override returns (uint8) {
         return 6; // USDT has 6 decimals
     }
+
+    // Faucet function: anyone can mint themselves any amount (for testnet only!)
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
+    }
 }

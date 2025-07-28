@@ -4,15 +4,9 @@
 import { usePrivy } from '@privy-io/react-auth'
 import { useEffect, useState } from 'react'
 import { ethers } from 'ethers'
-import { MOCK_USDT_ADDRESS } from '@/lib/web3'
+import { MOCK_USDT_ADDRESS, ERC20_ABI } from '@/lib/web3'
 import { RefreshCw } from 'lucide-react'
 
-// ERC20 ABI for balanceOf
-const ERC20_ABI = [
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
-]
 
 export function Web3Status() {
   const [mounted, setMounted] = useState(false)
@@ -55,6 +49,7 @@ export function Web3Status() {
     if (authenticated && user?.wallet?.address) {
       fetchUSDTBalance()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, user?.wallet?.address])
 
   // Prevent hydration mismatch by not rendering until mounted

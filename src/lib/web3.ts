@@ -11,14 +11,14 @@ export const GIFT_VOUCHER_ABI = [
 				"type": "address[]"
 			},
 			{
-				"internalType": "uint256[]",
+				"internalType": "uint64[]",
 				"name": "_amounts",
-				"type": "uint256[]"
+				"type": "uint64[]"
 			},
 			{
-				"internalType": "string[]",
+				"internalType": "bytes[]",
 				"name": "_messages",
-				"type": "string[]"
+				"type": "bytes[]"
 			}
 		],
 		"name": "batchCreateVouchers",
@@ -40,14 +40,14 @@ export const GIFT_VOUCHER_ABI = [
 				"type": "address"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "uint64",
 				"name": "_amount",
-				"type": "uint256"
+				"type": "uint64"
 			},
 			{
-				"internalType": "string",
+				"internalType": "bytes",
 				"name": "_message",
-				"type": "string"
+				"type": "bytes"
 			}
 		],
 		"name": "createVoucher",
@@ -77,6 +77,19 @@ export const GIFT_VOUCHER_ABI = [
 	{
 		"inputs": [
 			{
+				"internalType": "bytes32",
+				"name": "_voucherId",
+				"type": "bytes32"
+			}
+		],
+		"name": "refundVoucher",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "address",
 				"name": "_usdtAddress",
 				"type": "address"
@@ -84,6 +97,11 @@ export const GIFT_VOUCHER_ABI = [
 		],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "ReentrancyGuardReentrantCall",
+		"type": "error"
 	},
 	{
 		"anonymous": false,
@@ -99,50 +117,37 @@ export const GIFT_VOUCHER_ABI = [
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "_voucherId",
-				"type": "bytes32"
-			}
-		],
-		"name": "refundVoucher",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "bytes32",
 				"name": "voucherId",
 				"type": "bytes32"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "sender",
 				"type": "address"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "recipient",
 				"type": "address"
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
+				"internalType": "uint64",
 				"name": "amount",
-				"type": "uint256"
+				"type": "uint64"
 			},
 			{
 				"indexed": false,
-				"internalType": "string",
+				"internalType": "bytes",
 				"name": "message",
-				"type": "string"
+				"type": "bytes"
 			}
 		],
 		"name": "VoucherCreated",
@@ -152,22 +157,22 @@ export const GIFT_VOUCHER_ABI = [
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "bytes32",
 				"name": "voucherId",
 				"type": "bytes32"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "recipient",
 				"type": "address"
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
+				"internalType": "uint64",
 				"name": "amount",
-				"type": "uint256"
+				"type": "uint64"
 			}
 		],
 		"name": "VoucherRedeemed",
@@ -177,22 +182,22 @@ export const GIFT_VOUCHER_ABI = [
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "bytes32",
 				"name": "voucherId",
 				"type": "bytes32"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "sender",
 				"type": "address"
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
+				"internalType": "uint64",
 				"name": "amount",
-				"type": "uint256"
+				"type": "uint64"
 			}
 		],
 		"name": "VoucherRefunded",
@@ -234,24 +239,24 @@ export const GIFT_VOUCHER_ABI = [
 						"type": "address"
 					},
 					{
-						"internalType": "uint256",
+						"internalType": "uint64",
 						"name": "amount",
-						"type": "uint256"
+						"type": "uint64"
 					},
 					{
-						"internalType": "string",
+						"internalType": "bytes",
 						"name": "message",
-						"type": "string"
+						"type": "bytes"
+					},
+					{
+						"internalType": "uint32",
+						"name": "createdAt",
+						"type": "uint32"
 					},
 					{
 						"internalType": "bool",
 						"name": "redeemed",
 						"type": "bool"
-					},
-					{
-						"internalType": "uint256",
-						"name": "createdAt",
-						"type": "uint256"
 					}
 				],
 				"internalType": "struct GiftVoucher.Voucher",
@@ -280,9 +285,9 @@ export const GIFT_VOUCHER_ABI = [
 		"name": "VOUCHER_EXPIRY",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "",
-				"type": "uint256"
+				"type": "uint32"
 			}
 		],
 		"stateMutability": "view",
@@ -309,24 +314,24 @@ export const GIFT_VOUCHER_ABI = [
 				"type": "address"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "uint64",
 				"name": "amount",
-				"type": "uint256"
+				"type": "uint64"
 			},
 			{
-				"internalType": "string",
+				"internalType": "bytes",
 				"name": "message",
-				"type": "string"
+				"type": "bytes"
+			},
+			{
+				"internalType": "uint32",
+				"name": "createdAt",
+				"type": "uint32"
 			},
 			{
 				"internalType": "bool",
 				"name": "redeemed",
 				"type": "bool"
-			},
-			{
-				"internalType": "uint256",
-				"name": "createdAt",
-				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -336,6 +341,30 @@ export const GIFT_VOUCHER_ABI = [
 
 
 export const ERC20_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
 	{
 		"inputs": [],
 		"stateMutability": "nonpayable",
@@ -453,6 +482,48 @@ export const ERC20_ABI = [
 		"type": "event"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "mint",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -481,6 +552,35 @@ export const ERC20_ABI = [
 		"inputs": [
 			{
 				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
 				"name": "owner",
 				"type": "address"
 			},
@@ -499,30 +599,6 @@ export const ERC20_ABI = [
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "spender",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "value",
-				"type": "uint256"
-			}
-		],
-		"name": "approve",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -555,24 +631,6 @@ export const ERC20_ABI = [
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "to",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "mint",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -613,65 +671,12 @@ export const ERC20_ABI = [
 		],
 		"stateMutability": "view",
 		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "to",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "value",
-				"type": "uint256"
-			}
-		],
-		"name": "transfer",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "from",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "to",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "value",
-				"type": "uint256"
-			}
-		],
-		"name": "transferFrom",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
 	}
 ]
 
 // Contract addresses (update as needed)
-export const GIFT_VOUCHER_ADDRESS = "0xA31E9F57e243Bc79fb77370dD1E969f3E48Eeed6"
-export const MOCK_USDT_ADDRESS = "0x36082B138fAf369302942a26a5801B00c520d2cf"
+export const GIFT_VOUCHER_ADDRESS = "0xD24F42a4bb0Ca8fd5862B6Fb9cb24d2347Ff18b4"
+export const MOCK_USDT_ADDRESS = "0xdbE600c434eA6275b4257DB065215581C12686D0"
 
 
 // Morph Holesky network configuration

@@ -12,8 +12,6 @@ const { chains, publicClient, webSocketPublicClient } = configureChains(
   [publicProvider()]
 )
 
-
-
 export function PrivyWagmiProvider({ children }: { children: React.ReactNode }) {
   return (
     <PrivyProvider

@@ -88,6 +88,63 @@ export default function CreateGiftPage() {
     return /^0x[a-fA-F0-9]{40}$/.test(address);
   }
 
+  // Mint test USDT tokens
+  const mintTestUSDT = async () => {
+    if (!authenticated || !user?.wallet?.address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to mint test USDT.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let provider = (user.wallet as any).provider;
+      if (!provider && typeof window !== "undefined" && (window as any).ethereum) {
+        provider = (window as any).ethereum;
+      }
+      
+      if (!provider) {
+        toast({
+          title: "Wallet not connected",
+          description: "Could not access wallet provider.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      
+      const usdtContract = new ethers.Contract(
+        MOCK_USDT_ADDRESS,
+        ERC20_ABI,
+        signer
+      );
+
+      // Mint 100 USDT (100 * 1e6 units)
+      const mintAmount = 100 * 1e6;
+      const tx = await usdtContract.mint(user.wallet.address, mintAmount);
+      await tx.wait();
+
+      toast({
+        title: "Test USDT Minted!",
+        description: "You received 100 test USDT tokens.",
+      });
+    } catch (error) {
+      console.error("Mint error:", error);
+      toast({
+        title: "Mint Failed",
+        description: "Failed to mint test USDT tokens.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Estimate gas for transaction
   const estimateGas = async () => {
     if (
@@ -107,18 +164,47 @@ export default function CreateGiftPage() {
         return;
       }
 
-      const contract = await getGiftVoucherContractWithSigner(provider);
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
       const amountNum = Number(formData.amount);
+      const usdtAmount = amountNum * 1e6;
+
+      // Check USDT balance and allowance before gas estimation
+      const usdtContract = new ethers.Contract(
+        MOCK_USDT_ADDRESS,
+        ERC20_ABI,
+        signer
+      );
+
+      const balance = await usdtContract.balanceOf(user.wallet.address);
+      const allowance = await usdtContract.allowance(
+        user.wallet.address,
+        GIFT_VOUCHER_ADDRESS
+      );
+
+      // Debug logging for balance and allowance
+      console.log("[Gift] USDT balance:", balance.toString());
+      console.log("[Gift] USDT allowance:", allowance.toString());
+      console.log("[Gift] Required amount:", usdtAmount);
+      console.log("[Gift] USDT contract address:", MOCK_USDT_ADDRESS);
+      console.log("[Gift] GiftVoucher contract address:", GIFT_VOUCHER_ADDRESS);
+
+      // Skip gas estimation if insufficient balance or allowance
+      if (balance < usdtAmount || allowance < usdtAmount) {
+        setGasEstimate("0.01"); // Fallback
+        return;
+      }
+
+      const contract = await getGiftVoucherContractWithSigner(provider);
 
       // Estimate gas for createVoucher function
       const gasEstimate = await contract.createVoucher.estimateGas(
         formData.recipient,
-        amountNum * 1e6,
+        usdtAmount,
         formData.message || ""
       );
 
       // Get current gas price from the provider
-      const ethersProvider = new ethers.BrowserProvider(provider);
       const feeData = await ethersProvider.getFeeData();
       const gasPrice = feeData.gasPrice ?? BigInt(0);
       const gasCost = gasEstimate * gasPrice;
@@ -211,16 +297,35 @@ export default function CreateGiftPage() {
       const signer = await ethersProvider.getSigner();
       // 1 USDT = 1,000,000 units (6 decimals)
       const usdtAmount = amountNum * 1e6;
-      // Check allowance
+      
+      // Create USDT contract instance
       const usdtContract = new ethers.Contract(
         MOCK_USDT_ADDRESS,
         ERC20_ABI,
         signer
       );
+      
+      // Check user's USDT balance first
+      const balance = await usdtContract.balanceOf(user.wallet.address);
+      console.log('USDT balance:', balance.toString());
+      console.log('Required amount:', usdtAmount);
+      
+      if (balance < usdtAmount) {
+        toast({
+          title: "Insufficient USDT Balance",
+          description: `You need ${amountNum} USDT but only have ${ethers.formatUnits(balance, 6)} USDT. Please get more USDT tokens first.`,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Check allowance
       const allowance = await usdtContract.allowance(
         user.wallet.address,
         GIFT_VOUCHER_ADDRESS
       );
+      console.log('USDT allowance:', allowance.toString());
 
       if (allowance < usdtAmount) {
         // Prompt approval
@@ -241,14 +346,26 @@ export default function CreateGiftPage() {
       }
       // Now send the gift
       const contract = await getGiftVoucherContractWithSigner(provider);
+      
+      // Debug: Check what USDT address the GiftVoucher contract is using
+      try {
+        const contractUsdtAddress = await contract.usdt();
+        console.log("GiftVoucher contract USDT address:", contractUsdtAddress);
+        console.log("Expected USDT address:", MOCK_USDT_ADDRESS);
+        console.log("Addresses match:", contractUsdtAddress.toLowerCase() === MOCK_USDT_ADDRESS.toLowerCase());
+      } catch (error) {
+        console.error("Failed to get USDT address from contract:", error);
+      }
+      
       console.log(  formData.recipient,
         usdtAmount,
         formData.message)
       const tx = await contract.createVoucher(
         formData.recipient,
         usdtAmount,
-        formData.message
+        ethers.toUtf8Bytes(formData.message)  // Convert string to bytes
       );
+      console.log("tx", tx);
       const receipt = await tx.wait();
       // Extract voucherId from VoucherCreated event
       let voucherId = "";
@@ -413,16 +530,34 @@ export default function CreateGiftPage() {
       const amounts = batchData.map((e) => Number(e.amount) * 1e6);
       const messages = batchData.map((e) => e.message);
       const totalAmount = amounts.reduce((a, b) => a + b, 0);
-      // Check allowance
+      
+      // Create USDT contract instance
       const usdtContract = new ethers.Contract(
         MOCK_USDT_ADDRESS,
         ERC20_ABI,
         signer
       );
+      
+      // Check user's USDT balance first
+      const balance = await usdtContract.balanceOf(user.wallet.address);
+      const totalAmountFormatted = totalAmount / 1e6;
+      
+      if (balance < totalAmount) {
+        toast({
+          title: "Insufficient USDT Balance",
+          description: `You need ${totalAmountFormatted} USDT but only have ${ethers.formatUnits(balance, 6)} USDT. Please get more USDT tokens first.`,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Check allowance
       const allowance = await usdtContract.allowance(
         user.wallet.address,
         GIFT_VOUCHER_ADDRESS
       );
+      
       if (allowance < totalAmount) {
         toast({
           title: "Approval Needed",
@@ -444,7 +579,7 @@ export default function CreateGiftPage() {
       const tx = await contract.batchCreateVouchers(
         recipients,
         amounts,
-        messages
+        messages.map(msg => ethers.toUtf8Bytes(msg))  // Convert strings to bytes
       );
       const receipt = await tx.wait();
       // Extract voucherIds from BatchVouchersCreated event
@@ -664,6 +799,7 @@ export default function CreateGiftPage() {
                         </div>
                       )}
                     </div>
+
                     <InteractiveButton
                       type="button"
                       onClick={handleSendBatch}
