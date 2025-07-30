@@ -4,17 +4,17 @@
 
 Morph Gift is a decentralized gift-giving platform built on blockchain technology that allows users to send USDT-based gift vouchers to anyone, anywhere in the world. The platform combines the joy of gift-giving with the security and transparency of blockchain technology.
 
-## 🌟 Features
+## Features
 
 ### Core Functionalities
 
-- **🎯 Single Gift Creation**: Send individual gift vouchers with personalized messages
-- **📦 Batch Gift Creation**: Send up to 10 gifts simultaneously to multiple recipients
-- **💰 USDT Integration**: All gifts are denominated in USDT (1-5 USDT per gift)
-- **⏰ Time-Limited Vouchers**: 30-day expiration period for gift redemption
-- **🔄 Refund System**: Automatic refund capability after voucher expiration
-- **📱 Mobile-First Design**: Responsive UI optimized for all devices
-- **🎨 Beautiful Animations**: Confetti effects and smooth transitions
+- **Single Gift Creation**: Send individual gift vouchers with personalized messages
+- **Batch Gift Creation**: Send up to 10 gifts simultaneously to multiple recipients
+- **USDT Integration**: All gifts are denominated in USDT (1-5 USDT per gift)
+- **Time-Limited Vouchers**: 30-day expiration period for gift redemption
+- **Refund System**: Automatic refund capability after voucher expiration
+- **Mobile-First Design**: Responsive UI optimized for all devices
+- **Beautiful Animations**: Confetti effects and smooth transitions
 
 ### User Experience
 
@@ -24,7 +24,7 @@ Morph Gift is a decentralized gift-giving platform built on blockchain technolog
 - **QR Code Generation**: Easy sharing of gift vouchers
 - **Gas Estimation**: Transparent gas cost calculations
 
-## 🏗️ Architecture
+## Architecture
 
 ### Smart Contract (GiftVoucher.sol)
 
@@ -55,7 +55,7 @@ struct Voucher {
 - **Framer Motion**: Smooth animations and transitions
 - **Privy**: Web3 authentication and wallet management
 
-## 🔄 User Flow
+## User Flow
 
 ### 1. Gift Creation Flow
 
@@ -92,7 +92,7 @@ graph TD
     D --> E[Receive USDT Back]
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Framework**: Next.js 15 with App Router
@@ -128,7 +128,7 @@ graph TD
 }
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -141,8 +141,8 @@ graph TD
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/morph-gift.git
-   cd morph-gift
+   git clone https://github.com/KaushikKC/Micro-Gift.git
+   cd Micro-Gift
    ```
 
 2. **Install dependencies**
@@ -174,7 +174,7 @@ graph TD
 
 3. **Update contract addresses in `src/lib/web3.ts`**
 
-## 📱 Usage Guide
+## Usage Guide
 
 ### Creating a Gift
 
@@ -201,7 +201,7 @@ graph TD
 4. **Add Messages**: Personalize each gift with unique messages
 5. **Send Batch**: Execute all gifts in a single transaction
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -222,16 +222,7 @@ The platform is configured for Morph Holesky testnet:
 - **RPC URL**: https://rpc-quicknode-holesky.morphl2.io
 - **Block Explorer**: https://explorer-holesky.morphl2.io
 
-## 🧪 Testing
-
-```bash
-git clone https://github.com/KaushikKC/Micro-Gift.git
-cd Micro-Gift
-npm install
-npm run dev
-```
-
-## 📊 Contract Functions
+## Contract Functions
 
 ### GiftVoucher Contract
 
@@ -252,7 +243,7 @@ npm run dev
 | `transfer` | Transfer USDT tokens | to, amount |
 | `balanceOf` | Get account balance | account |
 
-## 🔒 Security Features
+## Security Features
 
 - **Reentrancy Protection**: OpenZeppelin ReentrancyGuard
 - **Input Validation**: Comprehensive parameter checks
@@ -261,7 +252,7 @@ npm run dev
 - **Amount Limits**: 1-5 USDT per voucher
 - **Message Limits**: 50 character maximum
 
-## 🎨 UI/UX Features
+## UI/UX Features
 
 - **Responsive Design**: Mobile-first approach
 - **Animations**: Smooth transitions and confetti effects
@@ -279,11 +270,11 @@ npm run dev
 - Update documentation for new features
 - Ensure mobile responsiveness
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - OpenZeppelin for secure smart contract libraries
 - Privy for seamless Web3 authentication
