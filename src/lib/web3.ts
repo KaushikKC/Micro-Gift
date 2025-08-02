@@ -737,42 +737,70 @@ export const MORPH_HOLESKY_NETWORK = {
 // Helper function to add/switch to Morph Holesky network
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function switchToMorphHolesky(ethereum: any): Promise<void> {
-  try {
-    // Try to switch to the network
-    await ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: `0x${MORPH_HOLESKY_CHAIN_ID.toString(16)}` }],
-    })
+  const maxRetries = 3
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (switchError: any) {
-    // This error code indicates that the chain has not been added to MetaMask
-    if (switchError.code === 4902) {
-      try {
-        await ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [
-            {
-              chainId: `0x${MORPH_HOLESKY_CHAIN_ID.toString(16)}`,
-              chainName: 'Morph Holesky',
-              nativeCurrency: {
-                name: 'Ether',
-                symbol: 'ETH',
-                decimals: 18,
-              },
-              rpcUrls: [MORPH_HOLESKY_RPC],
-              blockExplorerUrls: ['https://explorer-holesky.morphl2.io'],
-            },
-          ],
-        })
-      } catch (addError) {
-        console.error('Failed to add Morph Holesky network:', addError)
-        throw addError
+  let lastError: any
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Add delay between retries to avoid circuit breaker
+      if (attempt > 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
       }
-    } else {
-      console.error('Failed to switch to Morph Holesky network:', switchError)
-      throw switchError
+
+      // Try to switch to the network
+      await ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${MORPH_HOLESKY_CHAIN_ID.toString(16)}` }],
+      })
+      
+      // If successful, return
+      return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (switchError: any) {
+      lastError = switchError
+      
+      // Handle circuit breaker error
+      if (switchError.message?.includes('circuit breaker') || switchError.message?.includes('could not coalesce')) {
+        console.warn(`Network switch attempt ${attempt} failed due to circuit breaker, retrying...`)
+        continue
+      }
+      
+      // This error code indicates that the chain has not been added to MetaMask
+      if (switchError.code === 4902) {
+        try {
+          await ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: `0x${MORPH_HOLESKY_CHAIN_ID.toString(16)}`,
+                chainName: 'Morph Holesky',
+                nativeCurrency: {
+                  name: 'Ether',
+                  symbol: 'ETH',
+                  decimals: 18,
+                },
+                rpcUrls: [MORPH_HOLESKY_RPC],
+                blockExplorerUrls: ['https://explorer-holesky.morphl2.io'],
+              },
+            ],
+          })
+          return
+        } catch (addError) {
+          console.error('Failed to add Morph Holesky network:', addError)
+          lastError = addError
+          continue
+        }
+      } else {
+        console.error('Failed to switch to Morph Holesky network:', switchError)
+        // For other errors, don't retry
+        throw switchError
+      }
     }
   }
+  
+  // If all retries failed, throw the last error
+  throw lastError
 }
 
 // Helper function to check if user is on correct network

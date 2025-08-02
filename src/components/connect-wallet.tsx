@@ -82,6 +82,23 @@ export function ConnectWallet() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
+  // Handler for manual network switching
+  const handleManualNetworkSwitch = async () => {
+    try {
+      setNetworkSwitching(true)
+      const ethereum = (window as any).ethereum as any
+      if (!ethereum) throw new Error('No wallet provider found')
+
+      await switchToMorphHolesky(ethereum)
+      alert('Successfully switched to Morph Holesky network!')
+    } catch (error) {
+      console.error('Manual network switch failed:', error)
+      alert('Failed to switch network. Please try switching manually in your wallet.')
+    } finally {
+      setNetworkSwitching(false)
+    }
+  }
+
   // Handler for minting 100 USDT
   const handleMintUSDT = async () => {
     if (!user?.wallet?.address) return
@@ -90,11 +107,16 @@ export function ConnectWallet() {
       // Type as 'any' because window.ethereum is injected by wallet providers
       const ethereum = (window as any).ethereum as any
       if (!ethereum) throw new Error('No wallet provider found')
+      
       // Check network
       const onMorph = await isOnMorphHolesky(ethereum)
       if (!onMorph) {
         await switchToMorphHolesky(ethereum)
       }
+      
+      // Add delay to allow network switch to complete
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
       // Call mint/faucet (assume public mint(address,uint256) exists)
       const provider = new ethers.BrowserProvider(ethereum)
       const signer = await provider.getSigner()
@@ -111,7 +133,18 @@ export function ConnectWallet() {
       alert('100 USDT minted to your wallet! Please refresh the balance in the dropdown.')
     } catch (err: unknown) {
       const error = err as Error
-      alert(error?.message || 'Mint failed')
+      console.error('Mint error:', error)
+      
+      // Handle MetaMask circuit breaker error
+      if (error.message?.includes('circuit breaker') || error.message?.includes('could not coalesce')) {
+        alert('MetaMask is temporarily blocked. Please try again in a few minutes or refresh the page.')
+      } else if (error.message?.includes('network') || error.message?.includes('chain')) {
+        alert('Network error. Please ensure you are connected to Morph Holesky network.')
+      } else if (error.message?.includes('user rejected') || error.message?.includes('denied')) {
+        alert('Transaction was cancelled by user.')
+      } else {
+        alert(`Mint failed: ${error?.message || 'Unknown error'}`)
+      }
     } finally {
       setMinting(false)
     }
@@ -158,6 +191,15 @@ export function ConnectWallet() {
                 disabled={minting || networkSwitching}
               >
                 {minting ? 'Minting...' : networkSwitching ? 'Switching Network...' : 'Get 100 USDT'}
+              </InteractiveButton>
+              <InteractiveButton
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={handleManualNetworkSwitch}
+                disabled={networkSwitching}
+              >
+                {networkSwitching ? 'Switching...' : 'Switch to Morph Holesky'}
               </InteractiveButton>
             </div>
           </DropdownMenuContent>
